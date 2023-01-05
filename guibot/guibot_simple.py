@@ -36,14 +36,23 @@ from .guibot import GuiBot
 # accessible attributes of this module
 guibot = None
 last_match = None
-
+mouse_map = None
+key_map = None
+mod_map = None
 
 def initialize():
     """Initialize the simple API."""
     global guibot
-    global last_match
     guibot = GuiBot()
+    global last_match
     last_match = guibot.last_match
+
+    global mouse_map
+    mouse_map = guibot.dc_backend.mousemap
+    global key_map
+    key_map = guibot.dc_backend.keymap
+    global mod_map
+    mod_map = guibot.dc_backend.modmap
 
 
 def check_initialized():
