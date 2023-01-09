@@ -26,15 +26,21 @@ INTERFACE
 ------------------------------------------------------
 
 """
-
 import logging
+from typing import TYPE_CHECKING, Optional, TypeVar
 
 from .fileresolver import FileResolver
 from .region import Region
 
-
 log = logging.getLogger('guibot')
 log.addHandler(logging.NullHandler())
+
+if TYPE_CHECKING:
+    from .controller import Controller
+    from .finder import Finder
+
+_DC_T = TypeVar("_DC_T", bound=Controller)
+_CV_T = TypeVar("_CV_T", bound=Finder)
 
 
 class GuiBot(Region):
@@ -45,7 +51,7 @@ class GuiBot(Region):
     .. seealso:: Real API is inherited from :py:class:`region.Region`.
     """
 
-    def __init__(self, dc=None, cv=None):
+    def __init__(self, dc: Optional[_DC_T] = None, cv: Optional[_CV_T] = None):
         """
         Build a guibot object.
 
@@ -57,11 +63,11 @@ class GuiBot(Region):
         We will initialize with default region of full screen and default
         display control and computer vision backends if none are provided.
         """
-        super(GuiBot, self).__init__(dc=dc, cv=cv)
+        super().__init__(dc=dc, cv=cv)
 
         self.file_resolver = FileResolver()
 
-    def add_path(self, directory):
+    def add_path(self, directory: str):
         """
         Add a path to the list of currently accessible paths
         if it wasn't already added.
@@ -70,7 +76,7 @@ class GuiBot(Region):
         """
         self.file_resolver.add_path(directory)
 
-    def remove_path(self, directory):
+    def remove_path(self, directory: str):
         """
         Remove a path from the list of currently accessible paths.
 

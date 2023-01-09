@@ -30,23 +30,33 @@ INTERFACE
 
 """
 
-import time
+import logging
 import os
+import time
 
 # interconnected classes - carefully avoid circular reference
 from .config import GlobalConfig
-from .location import Location
+from .controller import AutoPyController, PyAutoGUIController, VNCDoToolController, XDoToolController
+from .errors import FindError, IncompatibleTargetError, IncompatibleTargetFileError, NotFindError
+from .finder import (
+    AutoPyFinder,
+    CascadeFinder,
+    ContourFinder,
+    DeepFinder,
+    FeatureFinder,
+    HybridFinder,
+    TemplateFeatureFinder,
+    TemplateFinder,
+    TextFinder,
+)
 from .imagelogger import ImageLogger
-from .errors import *
-from .target import *
-from .finder import *
-from .controller import *
+from .location import Location
+from .target import Chain, Image, Pattern, Target, Text
 
-import logging
 log = logging.getLogger('guibot.region')
 
 
-class Region(object):
+class Region:
     """
     Region of the screen supporting vertex and nearby region selection,
     validation of expected images, and mouse and keyboard control.
@@ -168,6 +178,7 @@ class Region(object):
         :rtype: int
         """
         return self._xpos
+
     x = property(fget=get_x)
 
     def get_y(self):
@@ -178,6 +189,7 @@ class Region(object):
         :rtype: int
         """
         return self._ypos
+
     y = property(fget=get_y)
 
     def get_width(self):
@@ -188,6 +200,7 @@ class Region(object):
         :rtype: int
         """
         return self._width
+
     width = property(fget=get_width)
 
     def get_height(self):
@@ -198,6 +211,7 @@ class Region(object):
         :rtype: int
         """
         return self._height
+
     height = property(fget=get_height)
 
     def get_center(self):
@@ -211,6 +225,7 @@ class Region(object):
         ypos = self._ypos + int(self._height / 2)
 
         return Location(xpos, ypos)
+
     center = property(fget=get_center)
 
     def get_top_left(self):
@@ -221,6 +236,7 @@ class Region(object):
         :rtype: :py:class:`location.Location`
         """
         return Location(self._xpos, self._ypos)
+
     top_left = property(fget=get_top_left)
 
     def get_top_right(self):
@@ -231,6 +247,7 @@ class Region(object):
         :rtype: :py:class:`location.Location`
         """
         return Location(self._xpos + self._width, self._ypos)
+
     top_right = property(fget=get_top_right)
 
     def get_bottom_left(self):
@@ -241,6 +258,7 @@ class Region(object):
         :rtype: :py:class:`location.Location`
         """
         return Location(self._xpos, self._ypos + self._height)
+
     bottom_left = property(fget=get_bottom_left)
 
     def get_bottom_right(self):
@@ -251,8 +269,10 @@ class Region(object):
         :rtype: :py:class:`location.Location`
         """
         return Location(self._xpos + self._width, self._ypos + self._height)
+
     bottom_right = property(fget=get_bottom_right)
 
+    @property
     def is_empty(self):
         """
         Getter for readonly attribute.
@@ -261,7 +281,6 @@ class Region(object):
         :rtype: bool
         """
         return self._width == 0 and self._height == 0
-    is_empty = property(fget=is_empty)
 
     def get_last_match(self):
         """
@@ -271,6 +290,7 @@ class Region(object):
         :rtype: :py:class:`match.Match`
         """
         return self._last_match
+
     last_match = property(fget=get_last_match)
 
     def get_mouse_location(self):
@@ -281,6 +301,7 @@ class Region(object):
         :rtype: :py:class:`location.Location`
         """
         return self.dc_backend.mouse_location
+
     mouse_location = property(fget=get_mouse_location)
 
     """Main region methods"""
@@ -485,7 +506,7 @@ class Region(object):
         try:
             # guess from a match file has the highest precedence
             return Target.from_match_file(target_str)
-        except (IOError, FileNotFoundError) as ex:
+        except (OSError, FileNotFoundError) as ex:
             log.debug(ex)
             try:
                 # if a match file does not exist but a data file exists
@@ -894,7 +915,7 @@ class Region(object):
         if modifiers is not None:
             log.info("Holding the modifiers %s", " ".join(modifiers))
             self.dc_backend.keys_toggle(modifiers, True)
-            #self.dc_backend.keys_toggle(["Ctrl"], True)
+            # self.dc_backend.keys_toggle(["Ctrl"], True)
 
         log.info("Dragging %s", target_or_location)
         self.dc_backend.mouse_down(self.LEFT_BUTTON)
@@ -1064,6 +1085,7 @@ class Region(object):
         return text_list
 
     """Mixed (form) methods"""
+
     def click_at(self, anchor, dx, dy, count=1):
         """
         Clicks on a relative location using a displacement from an anchor.
@@ -1200,8 +1222,8 @@ class Region(object):
             # which is 0, implying empty space repeated in the dropdown box and the
             # list, therefore a total of 2 option heights spanning the haystack height.
             # The haystack y displacement relative to 'loc' is then 1/2*1/2*dh
-            dropdown_haystack = Region(xpos=int(loc.x - dw / 2),
-                                       ypos=int(loc.y - dh / 4),
+            dropdown_haystack = Region(xpos=int(dx - dw / 2),
+                                       ypos=int(dy - dh / 4),
                                        width=dw, height=dh,
                                        dc=self.dc_backend, cv=self.cv_backend)
             dropdown_haystack.click(image_or_index)

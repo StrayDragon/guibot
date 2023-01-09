@@ -25,16 +25,14 @@ INTERFACE
 
 """
 
-import os
-from .errors import *
-
 import logging
-
+import os
+from typing import List
 
 log = logging.getLogger('guibot.path')
 
 
-class FileResolver(object):
+class FileResolver:
     """
     Handler for currently used target paths or
     sources of targets with a desired name.
@@ -44,7 +42,7 @@ class FileResolver(object):
     """
 
     # Shared between all instances
-    _target_paths = []
+    _target_paths: List[str] = []
 
     def add_path(self, directory):
         """
@@ -128,14 +126,13 @@ class FileResolver(object):
         return None
 
     def __iter__(self):
-        for p in self._target_paths:
-            yield p
+        yield from self._target_paths
 
     def __len__(self):
         return len(self._target_paths)
 
 
-class CustomFileResolver(object):
+class CustomFileResolver:
     """
     Class to be used to search for files inside certain paths.
 

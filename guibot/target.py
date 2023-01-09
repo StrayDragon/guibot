@@ -28,19 +28,31 @@ INTERFACE
 import copy
 import os
 import re
+from typing import Any, Dict
+
 import PIL.Image
 
 from .config import GlobalConfig
-from .location import Location
+from .errors import IncompatibleTargetFileError, UnsupportedBackendError
 from .fileresolver import FileResolver
-from .finder import *
-from .errors import *
-
+from .finder import (
+    AutoPyFinder,
+    CascadeFinder,
+    ContourFinder,
+    DeepFinder,
+    FeatureFinder,
+    Finder,
+    HybridFinder,
+    TemplateFeatureFinder,
+    TemplateFinder,
+    TextFinder,
+)
+from .location import Location
 
 __all__ = ['Target', 'Image', 'Text', 'Pattern', 'Chain']
 
 
-class Target(object):
+class Target:
     """
     Target used to obtain screen location for clicking, typing,
     validation of expected visual output, etc.
@@ -147,6 +159,7 @@ class Target(object):
         :rtype: float
         """
         return self.match_settings.params["find"]["similarity"].value
+
     similarity = property(fget=get_similarity)
 
     def get_center_offset(self):
@@ -160,6 +173,7 @@ class Target(object):
         it is then taken when matching to produce a clicking target for a match.
         """
         return self._center_offset
+
     center_offset = property(fget=get_center_offset)
 
     def load(self, filename, **kwargs):
@@ -239,7 +253,7 @@ class Image(Target):
     file operations, and preprocessing.
     """
 
-    _cache = {}
+    _cache: Dict[str, Any] = {}
 
     def __init__(self, image_filename=None,
                  pil_image=None, match_settings=None,
@@ -255,7 +269,7 @@ class Image(Target):
         :type match_settings: :py:class:`finder.Finder` or None
         :param bool use_cache: whether to cache image data for better performance
         """
-        super(Image, self).__init__(match_settings)
+        super().__init__(match_settings)
         self._filename = image_filename
         self._pil_image = None
         self._width = 0
@@ -287,6 +301,7 @@ class Image(Target):
         :rtype: str
         """
         return self._filename
+
     filename = property(fget=get_filename)
 
     def get_width(self):
@@ -297,6 +312,7 @@ class Image(Target):
         :rtype: int
         """
         return self._width
+
     width = property(fget=get_width)
 
     def get_height(self):
@@ -307,6 +323,7 @@ class Image(Target):
         :rtype: int
         """
         return self._height
+
     height = property(fget=get_height)
 
     def get_pil_image(self):
@@ -317,6 +334,7 @@ class Image(Target):
         :rtype: :py:class:`PIL.Image`
         """
         return self._pil_image
+
     pil_image = property(fget=get_pil_image)
 
     def load(self, filename, use_cache=True, **kwargs):
@@ -326,7 +344,7 @@ class Image(Target):
         :param str filename: name for the target file
         :param bool use_cache: whether to cache image data for better performance
         """
-        super(Image, self).load(filename)
+        super().load(filename)
         if not os.path.exists(filename):
             filename = FileResolver().search(filename)
 
@@ -351,7 +369,7 @@ class Image(Target):
         The image is compressed upon saving with a PNG compression setting
         specified by :py:func:`config.GlobalConfig.image_quality`.
         """
-        super(Image, self).save(filename)
+        super().save(filename)
         filename += ".png" if os.path.splitext(filename)[-1] != ".png" else ""
         self.pil_image.save(filename, compress_level=GlobalConfig.image_quality)
 
@@ -376,7 +394,7 @@ class Text(Target):
         :param match_settings: predefined configuration for the CV backend if any
         :type match_settings: :py:class:`finder.Finder` or None
         """
-        super(Text, self).__init__(match_settings)
+        super().__init__(match_settings)
         self.value = value
         self.filename = text_filename
 
@@ -398,7 +416,7 @@ class Text(Target):
 
         :param str filename: name for the target file
         """
-        super(Text, self).load(filename)
+        super().load(filename)
         if not os.path.exists(filename):
             filename = FileResolver().search(filename)
         with open(filename) as f:
@@ -410,7 +428,7 @@ class Text(Target):
 
         :param str filename: name for the target file
         """
-        super(Text, self).save(filename)
+        super().save(filename)
         filename += ".txt" if os.path.splitext(filename)[-1] != ".txt" else ""
         with open(filename, "w") as f:
             f.write(self.value)
@@ -427,15 +445,15 @@ class Text(Target):
         import numpy
         M = numpy.empty((len(str1) + 1, len(str2) + 1), int)
 
-        for a in range(0, len(str1)+1):
+        for a in range(0, len(str1) + 1):
             M[a, 0] = a
-        for b in range(0, len(str2)+1):
+        for b in range(0, len(str2) + 1):
             M[0, b] = b
 
-        for a in range(1, len(str1)+1):  # (size_t a = 1; a <= NA; ++a):
-            for b in range(1, len(str2)+1):  # (size_t b = 1; b <= NB; ++b)
-                z = M[a-1, b-1] + (0 if str1[a-1] == str2[b-1] else 1)
-                M[a, b] = min(min(M[a-1, b] + 1, M[a, b-1] + 1), z)
+        for a in range(1, len(str1) + 1):  # (size_t a = 1; a <= NA; ++a):
+            for b in range(1, len(str2) + 1):  # (size_t b = 1; b <= NB; ++b)
+                z = M[a - 1, b - 1] + (0 if str1[a - 1] == str2[b - 1] else 1)
+                M[a, b] = min(min(M[a - 1, b] + 1, M[a, b - 1] + 1), z)
 
         return M[len(str1), len(str2)]
 
@@ -454,7 +472,7 @@ class Pattern(Target):
         :param match_settings: predefined configuration for the CV backend if any
         :type match_settings: :py:class:`finder.Finder` or None
         """
-        super(Pattern, self).__init__(match_settings)
+        super().__init__(match_settings)
         self.id = id
         self.data_file = None
 
@@ -482,7 +500,7 @@ class Pattern(Target):
 
         :param str filename: name for the target file
         """
-        super(Pattern, self).load(filename)
+        super().load(filename)
         if not os.path.exists(filename):
             filename = FileResolver().search(filename)
         # loading the actual data is backend specific so only register its path
@@ -494,7 +512,7 @@ class Pattern(Target):
 
         :param str filename: name for the target file
         """
-        super(Pattern, self).save(filename)
+        super().save(filename)
         filename += ".csv" if "." not in str(self.id) else ""
         with open(filename, "wb") as fo:
             if self.data_file is not None:
@@ -520,7 +538,7 @@ class Chain(Target):
         :param match_settings: predefined configuration for the CV backend if any
         :type match_settings: :py:class:`finder.Finder` or None
         """
-        super(Chain, self).__init__(match_settings)
+        super().__init__(match_settings)
         self.target_name = target_name
         self._steps = []
         self.load(self.target_name)
@@ -541,6 +559,7 @@ class Chain(Target):
         :raises: :py:class:`errors.UnsupportedBackendError` if a chain step is of unknown type
         :raises: :py:class:`IOError` if an chain step line cannot be parsed
         """
+
         def resolve_stepsfile(filename):
             """
             Try to find a valid steps file from a given file name.
@@ -579,10 +598,10 @@ class Chain(Target):
                 continue
 
             if len(dataconfig) != 2:
-                raise IOError("Invalid chain step line '%s'" % dataconfig[0])
+                raise OSError("Invalid chain step line '%s'" % dataconfig[0])
 
             data, config = dataconfig
-            super(Chain, self).load(config)
+            super().load(config)
             self.use_own_settings = False
 
             step_backend = self.match_settings.params["find"]["backend"]
@@ -602,7 +621,7 @@ class Chain(Target):
             self._steps.append(data_and_config)
 
         # now define own match configuration
-        super(Chain, self).load(steps_filename)
+        super().load(steps_filename)
 
     def save(self, steps_filename):
         """
@@ -610,7 +629,7 @@ class Chain(Target):
 
         :param str steps_filename: names for the sequence definition file
         """
-        super(Chain, self).save(self.target_name)
+        super().save(self.target_name)
         save_lines = []
         for data_and_config in self._steps:
             config = data_and_config.match_settings
