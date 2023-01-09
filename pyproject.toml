@@ -1,0 +1,90 @@
+[tool.poetry]
+name = "guibot"
+version = "0.0.50"
+description = ""
+authors = ["Your Name <you@example.com>"]
+license = "LGPL-3.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pillow = "^9.4.0"
+autopy = "^4.0.0"
+pytesseract = "^0.3.10"
+opencv-contrib-python = "^4.7.0.68"
+serpent = "^1.41"
+pyro4 = "^4.82"
+pydantic = "^1.10.4"
+
+[[tool.poetry.source]]
+name = "aliyun"
+url = "https://mirrors.aliyun.com/pypi/simple/"
+
+[[tool.poetry.source]]
+name = "douban"
+url = "https://pypi.doubanio.com/simple/"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.0.215"
+pre-commit = "^2.21.0"
+mypy = "^0.991"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 120
+
+# Enable Pyflakes `E` and `F` codes by default.
+select = [
+    # pyflakes
+    "F",
+    # pycodestyle
+    "E",
+    "W",
+    # isort
+    "I001",
+    # pyupgrade subset
+    "UP",
+]
+src = ["guibot", "tests"]
+ignore = []
+
+# Always autofix, but never try to fix `F401` (unused imports).
+fix = true
+unfixable = ["F401"]
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+per-file-ignores = { }
+
+# Assume Python 3.10.
+target-version = "py38"
+
+[tool.ruff.mccabe]
+max-complexity = 10
+
+[tool.ruff.pyupgrade]
+keep-runtime-typing = true
