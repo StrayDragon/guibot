@@ -26,13 +26,16 @@ INTERFACE
 """
 
 import logging
+from typing import List, Literal
+
+from pydantic import BaseSettings
 
 from guibot.errors import UninitializedBackendError, UnsupportedBackendError
 
-log = logging.getLogger('guibot.config')
+_logger = logging.getLogger("guibot.config")
 
 
-class GlobalConfig:
+class _GlobalConfig(BaseSettings):
     """
     Metaclass used for the definition of static properties (the settings).
 
@@ -47,40 +50,42 @@ class GlobalConfig:
     a class object, i.e. a metaclass instance.
     """
 
-    # operational parameters shared between all instances
+    class Config:
+        case_sensitive = True
+        validate_assignment = True
 
     # time interval between mouse down and up in a click
-    toggle_delay = 0.05
+    toggle_delay: float = 0.05
     # time interval after a click (in a double or n-click)
-    click_delay = 0.1
-    # timeout before drag operation
-    drag_delay = 0.5
+    click_delay: float = 0.1
+    # timeout after drag operation
+    delay_after_drag: float = 0.5
     # timeout before drop operation
-    drop_delay = 0.5
+    delay_before_drop: float = 0.5
     # timeout before key press operation
-    delay_before_keys = 0.2
+    delay_before_keys: float = 0.2
     # time interval between two consecutively typed keys
-    delay_between_keys = 0.1
+    delay_between_keys: float = 0.1
     # time interval between two image matching attempts (used to reduce overhead on the CPU)
-    rescan_speed_on_find = 0.2
+    rescan_speed_on_find: float = 0.2
     #  whether to wait for animations to complete and match only static (not moving) targets
-    wait_for_animations = False
+    wait_for_animations: bool = False
     # whether to move the mouse cursor to a location instantly or smoothly
-    smooth_mouse_drag = True
-    screen_autoconnect = True
+    smooth_mouse_drag: bool = True
+    screen_autoconnect: bool = True
     # whether to preprocess capital and special characters and handle them internally
-    preprocess_special_chars = True
+    preprocess_special_chars: bool = True
     # whether to perform an extra needle dump on matching error
-    save_needle_on_error = True
+    save_needle_on_error: bool = True
     # logging level similar to the python logging module
-    image_logging_level = logging.ERROR
-    # relative path of the image logging steps
-    image_logging_destination = "imglog"
+    image_logging_level: int = logging.ERROR
     # number of digits when enumerating the image logging steps, e.g. value=3 for 001, 002, etc.
-    image_logging_step_width = 3
+    image_logging_step_width: int = 3
+    # relative path of the image logging steps
+    image_logging_destination: str = "imglog"
     # quality of the image dumps ranging from 0 for no compression to 9 for maximum compression
     # (used to save space and reduce the disk space needed for image logging)
-    image_quality = 3
+    image_quality: int = 3
 
     # backends shared between all instances
     # Same as :py:func:`GlobalConfig.image_logging_destination` but with
@@ -104,7 +109,7 @@ class GlobalConfig:
     #
     # .. warning:: To use a particular backend you need to satisfy its dependencies,
     #     i.e. the backend has to be installed or you will have unsatisfied imports
-    display_control_backend = "pyautogui"
+    display_control_backend: Literal["pyautogui", "autopy", "vncdotool", "xdotool", "qemu"] = "pyautogui"
     # name of the computer vision backend
     # Same as :py:func:`GlobalConfig.image_logging_destination` but with
     #
@@ -129,23 +134,66 @@ class GlobalConfig:
     #
     # .. warning:: To use a particular backend you need to satisfy its dependencies,
     #     i.e. the backend has to be installed or you will have unsatisfied imports.
-    find_backend = "hybrid"
-    # name of the contour threshold backend
-    contour_threshold_backend = "adaptive"
+    find_backend: Literal[
+        "autopy",
+        "contour",
+        "template",
+        "feature",
+        "cascade",
+        "text",
+        "tempfeat",
+        "deep",
+        "hybrid",
+    ] = "hybrid"
+    # name of the contour threshold backend, Same as :py:func:`GlobalConfig.image_logging_destination`
+    # but with  :param value: name of the contour threshold backend
+    contour_threshold_backend: Literal["normal", "adaptive", "canny"] = "adaptive"
     # name of the template matching backend
     # Same as :py:func:`GlobalConfig.image_logging_destination` but with
     # :param value: name of the template matching backend
-    # Supported backends: autopy, sqdiff, ccorr, ccoeff, sqdiff_normed,
-    # ccorr_normed, ccoeff_normed.
-    template_match_backend = "ccoeff_normed"
+    # Supported backends: autopy, sqdiff, ccorr, ccoeff, sqdiff_normed, ccorr_normed, ccoeff_normed.
+    template_match_backend: Literal[
+        "autopy",
+        "sqdiff",
+        "ccorr",
+        "ccoeff",
+        "sqdiff_normed",
+        "ccorr_normed",
+        "ccoeff_normed",
+    ] = "ccoeff_normed"
     # name of the feature detection backend
-    feature_detect_backend = "ORB"
-    feature_extract_backend = "ORB"
-    feature_match_backend = "BruteForce-Hamming"
-    text_detect_backend = "contours"
-    text_ocr_backend = "pytesseract"
-    deep_learn_backend = "pytorch"
-    hybrid_match_backend = "template"
+    feature_detect_backend: Literal[
+        "BruteForce",
+        "BruteForce-L1",
+        "BruteForce-Hamming",
+        "BruteForce-Hamming(2)",
+        "in-house-raw",
+        "in-house-region",
+        "ORB",
+    ] = "ORB"
+    # name of the feature extraction backend
+    feature_extract_backend: Literal["ORB", "FAST", "STAR", "GFTT", "HARRIS", "Dense", "oldSURF"] = "ORB"
+    # name of the feature matching backend
+    feature_match_backend: Literal["ORB", "BRIEF", "FREAK", "BruteForce-Hamming"] = "BruteForce-Hamming"
+    # name of the text detection backend
+    text_detect_backend: Literal["east", "erstat", "contours", "components"] = "contours"
+    # name of the optical character recognition backend
+    text_ocr_backend: Literal["pytesseract", "tesserocr", "tesseract", "hmm", "beamSearch"] = "pytesseract"
+    # name of the deep learning backend
+    deep_learn_backend: Literal["pytorch", "tensorflow"] = "pytorch"
+    # name of the hybrid matching backend for unconfigured one-step targets
+    hybrid_match_backend: str = "template"
+    # list of auto guess file resolver support file ext names
+    file_resolver_support_file_ext_names: List[str] = [
+        "png",
+        "xml",
+        "txt",
+        "csv",
+        "steps",
+    ]
+
+
+GlobalConfig = _GlobalConfig()
 
 
 class TemporaryConfig:
@@ -245,8 +293,10 @@ class LocalConfig:
         if backend is None:
             backend = "cv"
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
         self.params[category] = {}
         self.params[category]["backend"] = backend

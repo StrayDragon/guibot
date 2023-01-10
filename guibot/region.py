@@ -53,7 +53,7 @@ from .imagelogger import ImageLogger
 from .location import Location
 from .target import Chain, Image, Pattern, Target, Text
 
-log = logging.getLogger('guibot.region')
+_logger = logging.getLogger("guibot.region")
 
 
 class Region:
@@ -62,8 +62,7 @@ class Region:
     validation of expected images, and mouse and keyboard control.
     """
 
-    def __init__(self, xpos=0, ypos=0, width=0, height=0,
-                 dc=None, cv=None):
+    def __init__(self, xpos=0, ypos=0, width=0, height=0, dc=None, cv=None):
         """
         Build a region object from upleft to downright vertex coordinates.
 
@@ -135,17 +134,17 @@ class Region:
 
         mouse_map = self.dc_backend.mousemap
         for mouse_button in dir(mouse_map):
-            if mouse_button.endswith('_BUTTON'):
+            if mouse_button.endswith("_BUTTON"):
                 setattr(self, mouse_button, getattr(mouse_map, mouse_button))
 
         key_map = self.dc_backend.keymap
         for key in dir(key_map):
-            if not key.startswith('__') and key != "to_string":
+            if not key.startswith("__") and key != "to_string":
                 setattr(self, key, getattr(key_map, key))
 
         mod_map = self.dc_backend.modmap
         for modifier_key in dir(mod_map):
-            if modifier_key.startswith('MOD_'):
+            if modifier_key.startswith("MOD_"):
                 setattr(self, modifier_key, getattr(mod_map, modifier_key))
 
     def _ensure_screen_clipping(self):
@@ -315,7 +314,7 @@ class Region:
         :returns: new region enlarged by `rrange` on all sides
         :rtype: :py:class:`Region`
         """
-        log.debug("Checking nearby the current region")
+        _logger.debug("Checking nearby the current region")
         new_xpos = self._xpos - rrange
         if new_xpos < 0:
             new_xpos = 0
@@ -328,8 +327,7 @@ class Region:
         new_height = self._height + rrange + self._ypos - new_ypos
 
         # Final clipping is done in the Region constructor
-        return Region(new_xpos, new_ypos, new_width, new_height,
-                      self.dc_backend, self.cv_backend)
+        return Region(new_xpos, new_ypos, new_width, new_height, self.dc_backend, self.cv_backend)
 
     def above(self, rrange=0):
         """
@@ -340,7 +338,7 @@ class Region:
         :returns: new region enlarged by `rrange` on upper side
         :rtype: :py:class:`Region`
         """
-        log.debug("Checking above the current region")
+        _logger.debug("Checking above the current region")
         if rrange == 0:
             new_ypos = 0
             new_height = self._ypos + self._height
@@ -352,8 +350,7 @@ class Region:
             new_height = self._height + self._ypos - new_ypos
 
         # Final clipping is done in the Region constructor
-        return Region(self._xpos, new_ypos, self._width, new_height,
-                      self.dc_backend, self.cv_backend)
+        return Region(self._xpos, new_ypos, self._width, new_height, self.dc_backend, self.cv_backend)
 
     def below(self, rrange=0):
         """
@@ -364,15 +361,14 @@ class Region:
         :returns: new region enlarged by `rrange` on lower side
         :rtype: :py:class:`Region`
         """
-        log.debug("Checking below the current region")
+        _logger.debug("Checking below the current region")
         if rrange == 0:
             rrange = self.dc_backend.height
 
         new_height = self._height + rrange
 
         # Final clipping is done in the Region constructor
-        return Region(self._xpos, self._ypos, self._width, new_height,
-                      self.dc_backend, self.cv_backend)
+        return Region(self._xpos, self._ypos, self._width, new_height, self.dc_backend, self.cv_backend)
 
     def left(self, rrange=0):
         """
@@ -383,7 +379,7 @@ class Region:
         :returns: new region enlarged by `rrange` on left side
         :rtype: :py:class:`Region`
         """
-        log.debug("Checking left of the current region")
+        _logger.debug("Checking left of the current region")
         if rrange == 0:
             new_xpos = 0
             new_width = self._xpos + self._width
@@ -395,8 +391,7 @@ class Region:
             new_width = self._width + self._xpos - new_xpos
 
         # Final clipping is done in the Region constructor
-        return Region(new_xpos, self._ypos, new_width, self._height,
-                      self.dc_backend, self.cv_backend)
+        return Region(new_xpos, self._ypos, new_width, self._height, self.dc_backend, self.cv_backend)
 
     def right(self, rrange=0):
         """
@@ -407,15 +402,14 @@ class Region:
         :returns: new region enlarged by `rrange` on right side
         :rtype: :py:class:`Region`
         """
-        log.debug("Checking right of the current region")
+        _logger.debug("Checking right of the current region")
         if rrange == 0:
             rrange = self.dc_backend.width
 
         new_width = self._width + rrange
 
         # Final clipping is done in the Region constructor
-        return Region(self._xpos, self._ypos, new_width, self._height,
-                      self.dc_backend, self.cv_backend)
+        return Region(self._xpos, self._ypos, new_width, self._height, self.dc_backend, self.cv_backend)
 
     """Image expect methods"""
 
@@ -452,7 +446,7 @@ class Region:
         """
         if isinstance(target, str):
             target = self._target_from_string(target)
-        log.debug("Looking for targets %s", target)
+        _logger.debug("Looking for targets %s", target)
         cv_backend = self._determine_cv_backend(target)
         dc_backend = self.dc_backend
 
@@ -466,11 +460,20 @@ class Region:
             relative_matches = cv_backend.find(target, screen_capture)
             if len(relative_matches) > 0:
                 from .match import Match
+
                 for i, match in enumerate(relative_matches):
                     absolute_x, absolute_y = match.x + self.x, match.y + self.y
-                    new_match = Match(absolute_x, absolute_y,
-                                      match.width, match.height, match.dx, match.dy,
-                                      match.similarity, dc=dc_backend, cv=cv_backend)
+                    new_match = Match(
+                        absolute_x,
+                        absolute_y,
+                        match.width,
+                        match.height,
+                        match.dx,
+                        match.dy,
+                        match.similarity,
+                        dc=dc_backend,
+                        cv=cv_backend,
+                    )
                     if len(last_matches) > i + 1:
                         if last_matches[i].x != absolute_x or last_matches[i].y != absolute_y:
                             moving_targets = True
@@ -507,23 +510,24 @@ class Region:
             # guess from a match file has the highest precedence
             return Target.from_match_file(target_str)
         except (OSError, FileNotFoundError) as ex:
-            log.debug(ex)
+            _logger.debug(ex)
             try:
                 # if a match file does not exist but a data file exists
                 return Target.from_data_file(target_str)
             except (IncompatibleTargetFileError, FileNotFoundError) as ex:
-                log.debug(ex)
+                _logger.debug(ex)
                 # if anything else goes wrong fail on the default type
                 return self.default_target_type(target_str)
 
     def _determine_cv_backend(self, target):
         if target.use_own_settings:
-            log.debug("Using special settings to match %s", target)
+            _logger.debug("Using special settings to match %s", target)
             return target.match_settings
         if isinstance(target, Text) and not isinstance(self.cv_backend, TextFinder):
             raise IncompatibleTargetError("Need text matcher for matching text")
-        if isinstance(target, Pattern) and not (isinstance(self.cv_backend, CascadeFinder)
-                                                or isinstance(self.cv_backend, DeepFinder)):
+        if isinstance(target, Pattern) and not (
+            isinstance(self.cv_backend, CascadeFinder) or isinstance(self.cv_backend, DeepFinder)
+        ):
             raise IncompatibleTargetError("Need pattern matcher for matching patterns")
         if isinstance(target, Chain) and not isinstance(self.cv_backend, HybridFinder):
             raise IncompatibleTargetError("Need hybrid matcher for matching chain targets")
@@ -543,7 +547,7 @@ class Region:
         .. note:: Not all matchers support a 'similarity' value. The ones that don't
             will return zero similarity (similarly to the target logging case).
         """
-        log.debug("Looking for target %s", target)
+        _logger.debug("Looking for target %s", target)
         if isinstance(target, str):
             target = Image(target)
         if not target.use_own_settings:
@@ -566,7 +570,7 @@ class Region:
                   or nothing if no match is found
         :rtype: :py:class:`match.Match` or None
         """
-        log.debug("Checking if %s is present", target)
+        _logger.debug("Checking if %s is present", target)
         try:
             return self.find(target, timeout)
         except FindError:
@@ -585,7 +589,7 @@ class Region:
         :rtype: :py:class:`match.Match`
         :raises: :py:class:`errors.FindError` if no match is found
         """
-        log.info("Waiting for %s", target)
+        _logger.info("Waiting for %s", target)
         return self.find(target, timeout)
 
     def wait_vanish(self, target, timeout=30):
@@ -600,7 +604,7 @@ class Region:
         :rtype: bool
         :raises: :py:class:`errors.NotFindError` if match is still found
         """
-        log.info("Waiting for %s to vanish", target)
+        _logger.info("Waiting for %s to vanish", target)
         expires = time.time() + timeout
         while time.time() < expires:
             if self.exists(target, 0) is None:
@@ -629,7 +633,7 @@ class Region:
 
         and as a way to conveniently perform timeout in between actions.
         """
-        log.debug("Waiting for %ss", timeout)
+        _logger.debug("Waiting for %ss", timeout)
         time.sleep(timeout)
         return self
 
@@ -643,11 +647,12 @@ class Region:
         :returns: match from finding the target or nothing if hovering over a known location
         :rtype: :py:class:`match.Match` or None
         """
-        log.info("Hovering over %s", target_or_location)
+        _logger.info("Hovering over %s", target_or_location)
         smooth = GlobalConfig.smooth_mouse_drag
 
         # Handle Match
         from .match import Match
+
         if isinstance(target_or_location, Match):
             self.dc_backend.mouse_move(target_or_location.target, smooth)
             return None
@@ -682,9 +687,9 @@ class Region:
             self.click('my_target', [KeyModifier.MOD_CTRL, 'x']).
         """
         match = self.hover(target_or_location)
-        log.info("Clicking at %s", target_or_location)
+        _logger.info("Clicking at %s", target_or_location)
         if modifiers is not None:
-            log.info("Holding the modifiers %s", " ".join(modifiers))
+            _logger.info("Holding the modifiers %s", " ".join(modifiers))
         self.dc_backend.mouse_click(self.LEFT_BUTTON, 1, modifiers)
         return match
 
@@ -696,9 +701,9 @@ class Region:
         Arguments and return values are analogical to :py:func:`Region.click`.
         """
         match = self.hover(target_or_location)
-        log.info("Right clicking at %s", target_or_location)
+        _logger.info("Right clicking at %s", target_or_location)
         if modifiers is not None:
-            log.info("Holding the modifiers %s", " ".join(modifiers))
+            _logger.info("Holding the modifiers %s", " ".join(modifiers))
         self.dc_backend.mouse_click(self.RIGHT_BUTTON, 1, modifiers)
         return match
 
@@ -710,9 +715,9 @@ class Region:
         Arguments and return values are analogical to :py:func:`Region.click`.
         """
         match = self.hover(target_or_location)
-        log.info("Double clicking at %s", target_or_location)
+        _logger.info("Double clicking at %s", target_or_location)
         if modifiers is not None:
-            log.info("Holding the modifiers %s", " ".join(modifiers))
+            _logger.info("Holding the modifiers %s", " ".join(modifiers))
         self.dc_backend.mouse_click(self.LEFT_BUTTON, 2, modifiers)
         return match
 
@@ -724,15 +729,13 @@ class Region:
         Arguments and return values are analogical to :py:func:`Region.click`.
         """
         match = self.hover(target_or_location)
-        log.info("Clicking %s times at %s", count, target_or_location)
+        _logger.info("Clicking %s times at %s", count, target_or_location)
         if modifiers is not None:
-            log.info("Holding the modifiers %s", " ".join(modifiers))
+            _logger.info("Holding the modifiers %s", " ".join(modifiers))
         self.dc_backend.mouse_click(self.LEFT_BUTTON, count, modifiers)
         return match
 
-    def click_expect(self, click_image_or_location,
-                     expect_image_or_location=None,
-                     modifiers=None, timeout=60):
+    def click_expect(self, click_image_or_location, expect_image_or_location=None, modifiers=None, timeout=60):
         """
         Click on an image or location and wait for another one to appear.
 
@@ -751,9 +754,7 @@ class Region:
             expect_image_or_location = click_image_or_location
         return self.wait(expect_image_or_location, timeout)
 
-    def click_vanish(self, click_image_or_location,
-                     expect_image_or_location=None,
-                     modifiers=None, timeout=60):
+    def click_vanish(self, click_image_or_location, expect_image_or_location=None, modifiers=None, timeout=60):
         """
         Click on an image or location and wait for another one to disappear.
 
@@ -817,8 +818,11 @@ class Region:
             self.find(anchor)
 
         sorted_targets = sorted(targets, key=lambda x: (x.x, x.y))
-        logging.debug("Totally %s clicking matches found: %s", len(sorted_targets),
-                      ["(%s, %s)" % (x.x, x.y) for x in sorted_targets])
+        logging.debug(
+            "Totally %s clicking matches found: %s",
+            len(sorted_targets),
+            ["(%s, %s)" % (x.x, x.y) for x in sorted_targets],
+        )
         self.click(sorted_targets[index])
         return sorted_targets[index]
 
@@ -838,7 +842,7 @@ class Region:
         if button is None:
             button = self.LEFT_BUTTON
         match = self.hover(target_or_location)
-        log.debug("Holding down the mouse at %s", target_or_location)
+        _logger.debug("Holding down the mouse at %s", target_or_location)
         self.dc_backend.mouse_down(button)
         return match
 
@@ -858,7 +862,7 @@ class Region:
         if button is None:
             button = self.LEFT_BUTTON
         match = self.hover(target_or_location)
-        log.debug("Holding up the mouse at %s", target_or_location)
+        _logger.debug("Holding up the mouse at %s", target_or_location)
         self.dc_backend.mouse_up(button)
         return match
 
@@ -876,9 +880,12 @@ class Region:
         :rtype: :py:class:`match.Match` or None
         """
         match = self.hover(target_or_location)
-        log.debug("Scrolling the mouse %s for %s clicks at %s",
-                  "horizontally" if horizontal else "vertically",
-                  clicks, target_or_location)
+        _logger.debug(
+            "Scrolling the mouse %s for %s clicks at %s",
+            "horizontally" if horizontal else "vertically",
+            clicks,
+            target_or_location,
+        )
         self.dc_backend.mouse_scroll(clicks, horizontal)
         return match
 
@@ -913,11 +920,11 @@ class Region:
 
         time.sleep(0.2)
         if modifiers is not None:
-            log.info("Holding the modifiers %s", " ".join(modifiers))
+            _logger.info("Holding the modifiers %s", " ".join(modifiers))
             self.dc_backend.keys_toggle(modifiers, True)
             # self.dc_backend.keys_toggle(["Ctrl"], True)
 
-        log.info("Dragging %s", target_or_location)
+        _logger.info("Dragging %s", target_or_location)
         self.dc_backend.mouse_down(self.LEFT_BUTTON)
         time.sleep(GlobalConfig.delay_after_drag)
 
@@ -933,12 +940,12 @@ class Region:
         match = self.hover(target_or_location)
         time.sleep(GlobalConfig.delay_before_drop)
 
-        log.info("Dropping at %s", target_or_location)
+        _logger.info("Dropping at %s", target_or_location)
         self.dc_backend.mouse_up(self.LEFT_BUTTON)
 
         time.sleep(0.5)
         if modifiers is not None:
-            log.info("Holding the modifiers %s", " ".join(modifiers))
+            _logger.info("Holding the modifiers %s", " ".join(modifiers))
             self.dc_backend.keys_toggle(modifiers, False)
 
         return match
@@ -996,21 +1003,19 @@ class Region:
                         raise  # a key cannot be a string (text)
                     key_strings.append(key)
                 keys_list.append(key)
-            log.info("Pressing together keys '%s'%s",
-                     "'+'".join(keystr for keystr in key_strings),
-                     at_str)
+            _logger.info("Pressing together keys '%s'%s", "'+'".join(keystr for keystr in key_strings), at_str)
         else:
             # if not a list (i.e. if a single key)
             key = keys
             try:
-                log.info("Pressing key '%s'%s", self.dc_backend.keymap.to_string(key), at_str)
+                _logger.info("Pressing key '%s'%s", self.dc_backend.keymap.to_string(key), at_str)
             # if not a special key (i.e. if a character key)
             except KeyError:
                 if isinstance(key, int):
                     key = str(key)
                 elif len(key) > 1:
                     raise  # only left keys are chars
-                log.info("Pressing key '%s'%s", key, at_str)
+                _logger.info("Pressing key '%s'%s", key, at_str)
             keys_list.append(key)
         return keys_list
 
@@ -1041,7 +1046,7 @@ class Region:
         if modifiers is not None:
             if isinstance(modifiers, str):
                 modifiers = [modifiers]
-            log.info("Holding the modifiers '%s'", "'+'".join(modifiers))
+            _logger.info("Holding the modifiers '%s'", "'+'".join(modifiers))
         self.dc_backend.keys_type(text_list, modifiers)
         return self
 
@@ -1061,7 +1066,7 @@ class Region:
         if modifiers is not None:
             if isinstance(modifiers, str):
                 modifiers = [modifiers]
-            log.info("Holding the modifiers '%s'", "'+'".join(modifiers))
+            _logger.info("Holding the modifiers '%s'", "'+'".join(modifiers))
         self.dc_backend.keys_type(text_list, modifiers)
         return match
 
@@ -1070,15 +1075,15 @@ class Region:
 
         text_list = []
         if isinstance(text, str):
-            log.info("Typing text '%s'%s", text, at_str)
+            _logger.info("Typing text '%s'%s", text, at_str)
             text_list = [text]
         else:
             for part in text:
                 if isinstance(part, str):
-                    log.info("Typing text '%s'%s", part, at_str)
+                    _logger.info("Typing text '%s'%s", part, at_str)
                     text_list.append(part)
                 elif isinstance(part, int):
-                    log.info("Typing '%i'%s", part, at_str)
+                    _logger.info("Typing '%i'%s", part, at_str)
                     text_list.append(str(part))
                 else:
                     raise ValueError("Unknown text character" % part)
@@ -1100,6 +1105,7 @@ class Region:
         :raises: :py:class:`exceptions.ValueError` if `count` is not acceptable value
         """
         from .match import Match
+
         if isinstance(anchor, Match):
             start_loc = anchor.target
         elif isinstance(anchor, Location):
@@ -1112,9 +1118,7 @@ class Region:
 
         return self
 
-    def fill_at(self, anchor, text, dx, dy,
-                del_flag=True, esc_flag=True,
-                mark_clicks=1):
+    def fill_at(self, anchor, text, dx, dy, del_flag=True, esc_flag=True, mark_clicks=1):
         """
         Fills a new text at a text box using a displacement from an anchor.
 
@@ -1162,9 +1166,7 @@ class Region:
 
         return self
 
-    def select_at(self, anchor, image_or_index, dx, dy,
-                  dw=0, dh=0, ret_flag=True,
-                  mark_clicks=1):
+    def select_at(self, anchor, image_or_index, dx, dy, dw=0, dh=0, ret_flag=True, mark_clicks=1):
         """
         Select an option at a dropdown list using either an integer index
         or an option image if the order cannot be easily inferred.
@@ -1222,10 +1224,14 @@ class Region:
             # which is 0, implying empty space repeated in the dropdown box and the
             # list, therefore a total of 2 option heights spanning the haystack height.
             # The haystack y displacement relative to 'loc' is then 1/2*1/2*dh
-            dropdown_haystack = Region(xpos=int(dx - dw / 2),
-                                       ypos=int(dy - dh / 4),
-                                       width=dw, height=dh,
-                                       dc=self.dc_backend, cv=self.cv_backend)
+            dropdown_haystack = Region(
+                xpos=int(dx - dw / 2),
+                ypos=int(dy - dh / 4),
+                width=dw,
+                height=dh,
+                dc=self.dc_backend,
+                cv=self.cv_backend,
+            )
             dropdown_haystack.click(image_or_index)
 
         return self

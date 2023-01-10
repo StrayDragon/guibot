@@ -24,6 +24,7 @@ INTERFACE
 ------------------------------------------------------
 
 """
+from __future__ import annotations
 
 import copy
 import os
@@ -49,7 +50,7 @@ from .finder import (
 )
 from .location import Location
 
-__all__ = ['Target', 'Image', 'Text', 'Pattern', 'Chain']
+__all__ = ("Target", "Image", "Text", "Pattern", "Chain")
 
 
 class Target:
@@ -59,7 +60,7 @@ class Target:
     """
 
     @staticmethod
-    def from_data_file(filename):
+    def from_data_file(filename: str):
         """
         Read the target type from the extension of the target filename.
 
@@ -69,10 +70,13 @@ class Target:
         :raises: :py:class:`errors.IncompatibleTargetFileError` if the data file if of unknown type
         """
         if not os.path.exists(filename):
-            filename = FileResolver().search(filename)
+            _filename = FileResolver().search(filename)
+            if _filename:
+                filename = _filename
         basename = os.path.basename(filename)
         name, extension = os.path.splitext(basename)
 
+        target: Image | Text | Pattern | Chain
         if extension in (".png", ".jpg"):
             target = Image(filename)
         elif extension == ".txt":
@@ -101,7 +105,13 @@ class Target:
         match_filename = os.path.splitext(filename)[0] + ".match"
         finder = Finder.from_match_file(match_filename)
 
-        if finder.params["find"]["backend"] in ("autopy", "contour", "template", "feature", "tempfeat"):
+        if finder.params["find"]["backend"] in (
+            "autopy",
+            "contour",
+            "template",
+            "feature",
+            "tempfeat",
+        ):
             target = Image(filename, match_settings=finder)
         elif finder.params["find"]["backend"] == "text":
             target = Text(name, match_settings=finder)
@@ -255,9 +265,7 @@ class Image(Target):
 
     _cache: Dict[str, Any] = {}
 
-    def __init__(self, image_filename=None,
-                 pil_image=None, match_settings=None,
-                 use_cache=True):
+    def __init__(self, image_filename=None, pil_image=None, match_settings=None, use_cache=True):
         """
         Build an image object.
 
@@ -353,7 +361,7 @@ class Image(Target):
             self._pil_image = self._cache[filename]
         else:
             # load and cache image
-            self._pil_image = PIL.Image.open(filename).convert('RGB')
+            self._pil_image = PIL.Image.open(filename).convert("RGB")
             if use_cache:
                 self._cache[filename] = self._pil_image
         self._filename = filename
@@ -408,7 +416,7 @@ class Text(Target):
 
     def __str__(self):
         """Provide a part of the text value."""
-        return self.value[:30].replace('/', '').replace('\\', '')
+        return self.value[:30].replace("/", "").replace("\\", "")
 
     def load(self, filename, **kwargs):
         """
@@ -443,6 +451,7 @@ class Text(Target):
         """
         str1 = self.value
         import numpy
+
         M = numpy.empty((len(str1) + 1, len(str2) + 1), int)
 
         for a in range(0, len(str1) + 1):
@@ -585,7 +594,7 @@ class Chain(Target):
 
         while lines:
             step = lines.pop(0)
-            dataconfig = re.split(r'\t+', step.rstrip('\t\n'))
+            dataconfig = re.split(r"\t+", step.rstrip("\t\n"))
 
             # read a nested steps file and append to this chain
             if dataconfig[0].endswith(".steps"):

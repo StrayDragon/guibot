@@ -24,12 +24,14 @@ INTERFACE
 ------------------------------------------------------
 
 """
+from __future__ import annotations
 
 import logging
 import os
-from typing import List
+from pathlib import Path
+from typing import ClassVar
 
-log = logging.getLogger('guibot.path')
+_logger = logging.getLogger("guibot.path")
 
 
 class FileResolver:
@@ -42,20 +44,25 @@ class FileResolver:
     """
 
     # Shared between all instances
-    _target_paths: List[str] = []
+    _target_paths: ClassVar[list[str | Path]] = []
 
-    def add_path(self, directory):
+    @classmethod
+    def add_path(cls, directory: str | Path) -> None:
         """
         Add a path to the list of currently accessible paths
         if it wasn't already added.
 
         :param str directory: path to add
         """
-        if directory not in FileResolver._target_paths:
-            log.info("Adding target path %s", directory)
-            FileResolver._target_paths.append(directory)
+        if isinstance(directory, Path):
+            directory = str(directory)
 
-    def remove_path(self, directory):
+        if directory not in cls._target_paths:
+            _logger.info("Adding target path %s", directory)
+            cls._target_paths.append(directory)
+
+    @classmethod
+    def remove_path(cls, directory: str) -> bool | None:
         """
         Remove a path from the list of currently accessible paths.
 
@@ -64,19 +71,26 @@ class FileResolver:
         :rtype: bool
         """
         try:
-            FileResolver._target_paths.remove(directory)
+            cls._target_paths.remove(directory)
         except ValueError:
             return False
 
-        log.info("Removing target path %s", directory)
+        _logger.info("Removing target path %s", directory)
         return True
 
-    def clear(self):
+    @classmethod
+    def clear(cls) -> None:
         """Clear all currently accessible paths."""
         # empty list but keep reference
-        del FileResolver._target_paths[:]
+        cls._target_paths.clear()
 
-    def search(self, filename, restriction="", silent=False):
+    @classmethod
+    def search(
+        cls,
+        filename: str,
+        restriction: str = "",
+        silent: bool = False,
+    ) -> str | None:
         """
         Search for a filename in the currently accessible paths.
 
@@ -87,7 +101,9 @@ class FileResolver:
         :rtype: str or None
         :raises: :py:class:`FileNotFoundError` if no such file was found and not silent
         """
-        for directory in FileResolver._target_paths:
+        from .config import GlobalConfig
+
+        for directory in cls._target_paths:
             fullname = os.path.join(directory, filename)
 
             if restriction not in fullname:
@@ -95,33 +111,13 @@ class FileResolver:
             if os.path.exists(fullname):
                 return fullname
 
-            # Check with .png extension for images
-            fullname = os.path.join(directory, filename + '.png')
-            if os.path.exists(fullname):
-                return fullname
-
-            # Check with .xml extension for cascade
-            fullname = os.path.join(directory, filename + '.xml')
-            if os.path.exists(fullname):
-                return fullname
-
-            # Check with .txt extension for text
-            fullname = os.path.join(directory, filename + '.txt')
-            if os.path.exists(fullname):
-                return fullname
-
-            # Check with .csv extension for patterns
-            fullname = os.path.join(directory, filename + '.csv')
-            if os.path.exists(fullname):
-                return fullname
-
-            # Check with .steps extension for chains
-            fullname = os.path.join(directory, filename + '.steps')
-            if os.path.exists(fullname):
-                return fullname
+            for ext_name in GlobalConfig.file_resolver_support_file_ext_names:
+                fullname = os.path.join(directory, filename + f'.{ext_name.lstrip(".")}')
+                if os.path.exists(fullname):
+                    return fullname
 
         if not silent:
-            raise FileNotFoundError('File ' + filename + ' not found')
+            raise FileNotFoundError("File " + filename + " not found")
 
         return None
 

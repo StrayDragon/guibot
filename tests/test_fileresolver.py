@@ -15,15 +15,13 @@
 # along with guibot.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import unittest
-import logging
 import shutil
-from unittest import mock
+import unittest
 from tempfile import mkdtemp, mkstemp
 
 import common_test
-from guibot.fileresolver import FileResolver, CustomFileResolver
-from guibot.errors import FileNotFoundError
+from guibot.errors import NotFoundFileError
+from guibot.fileresolver import CustomFileResolver, FileResolver
 
 
 class FileResolverTest(unittest.TestCase):
@@ -45,16 +43,6 @@ class FileResolverTest(unittest.TestCase):
         # the paths are shared between all FileResolver instances
         self.resolver.clear()
 
-    def test_deprecated_class(self):
-        """Check that the deprecated :py:class:`Path` class still works."""
-        logger = logging.getLogger("guibot.path")
-        # import the legacy path module should log a warning
-        with mock.patch.object(logger, "warn") as mock_warn:
-            mock_warn.assert_not_called()
-            from guibot.path import Path
-            mock_warn.assert_called_once()
-            self.assertEqual(Path, FileResolver)
-
     def test_add_path(self):
         """Test that adding a path works."""
         self.resolver.add_path("paths")
@@ -72,52 +60,47 @@ class FileResolverTest(unittest.TestCase):
     def test_search(self):
         """Check that different :py:class:`FileResolver` instances contain the same paths."""
         self.resolver.add_path("images")
-        self.assertEqual(os.path.join("images", "shape_black_box.png"),
-                         self.resolver.search("shape_black_box.png"))
+        self.assertEqual(os.path.join("images", "shape_black_box.png"), self.resolver.search("shape_black_box.png"))
 
         new_finder = FileResolver()
-        self.assertEqual(os.path.join("images", "shape_black_box.png"),
-                         new_finder.search("shape_black_box"))
+        self.assertEqual(os.path.join("images", "shape_black_box.png"), new_finder.search("shape_black_box"))
 
     def test_search_fail(self):
         """Test failed search."""
         self.resolver.add_path("images")
-        self.assertRaises(FileNotFoundError, self.resolver.search, "foobar_does_not_exist")
+        self.assertRaises(NotFoundFileError, self.resolver.search, "foobar_does_not_exist")
 
     def test_search_type(self):
         """Test that searching file names without extension works."""
         self.resolver.add_path("images")
 
         # Test without extension
-        self.assertEqual(os.path.join("images", "shape_black_box.png"),
-                         self.resolver.search("shape_black_box"))
-        self.assertEqual(os.path.join("images", "mouse down.txt"),
-                         self.resolver.search("mouse down"))
-        self.assertEqual(os.path.join("images", "circle.steps"),
-                         self.resolver.search("circle"))
+        self.assertEqual(os.path.join("images", "shape_black_box.png"), self.resolver.search("shape_black_box"))
+        self.assertEqual(os.path.join("images", "mouse down.txt"), self.resolver.search("mouse down"))
+        self.assertEqual(os.path.join("images", "circle.steps"), self.resolver.search("circle"))
 
     def test_search_precedence(self):
         """Check the precedence of extensions when searching."""
         self.resolver.add_path("images")
 
         # Test correct precedence of the checks
-        self.assertEqual(os.path.join("images", "shape_blue_circle.xml"),
-                         self.resolver.search("shape_blue_circle.xml"))
-        self.assertEqual(os.path.join("images", "shape_blue_circle.png"),
-                         self.resolver.search("shape_blue_circle"))
+        self.assertEqual(os.path.join("images", "shape_blue_circle.xml"), self.resolver.search("shape_blue_circle.xml"))
+        self.assertEqual(os.path.join("images", "shape_blue_circle.png"), self.resolver.search("shape_blue_circle"))
 
     def test_search_keyword(self):
         """Check if the path restriction results in an empty set."""
         self.resolver.add_path("images")
-        self.assertEqual(os.path.join("images", "shape_black_box.png"),
-                         self.resolver.search("shape_black_box.png", "images"))
-        self.assertRaises(FileNotFoundError, self.resolver.search, "shape_black_box.png", "other-images")
+        self.assertEqual(
+            os.path.join("images", "shape_black_box.png"), self.resolver.search("shape_black_box.png", "images")
+        )
+        self.assertRaises(NotFoundFileError, self.resolver.search, "shape_black_box.png", "other-images")
 
     def test_search_silent(self):
         """Check that we can disable exceptions from being raised when searching."""
         self.resolver.add_path("images")
-        self.assertEqual(os.path.join("images", "shape_black_box.png"),
-                         self.resolver.search("shape_black_box.png", silent=True))
+        self.assertEqual(
+            os.path.join("images", "shape_black_box.png"), self.resolver.search("shape_black_box.png", silent=True)
+        )
 
         # Fail if the path restriction results in an empty set
         target = self.resolver.search("shape_missing_box.png", silent=True)
@@ -126,6 +109,7 @@ class FileResolverTest(unittest.TestCase):
     def test_paths_iterator(self):
         """Test that the FileResolver iterator yields the correct list."""
         self.assertListEqual(self.resolver._target_paths, [x for x in self.resolver])
+
 
 class CustomFileResolverTest(unittest.TestCase):
     """Tests for the CustomFileResolver class."""
@@ -155,7 +139,7 @@ class CustomFileResolverTest(unittest.TestCase):
             # now check that only one of these are found in our scope
             with CustomFileResolver(tmp_dir2) as p:
                 self.assertEqual(p.search(filename2), tmp_file2)
-                self.assertRaises(FileNotFoundError, p.search, filename1)
+                self.assertRaises(NotFoundFileError, p.search, filename1)
 
             # finally check that we've correctly restored everything on exit
             self.assertEqual(file_resolver.search(filename1), tmp_file1)
@@ -166,5 +150,6 @@ class CustomFileResolverTest(unittest.TestCase):
             shutil.rmtree(tmp_dir1)
             shutil.rmtree(tmp_dir2)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -37,24 +37,44 @@ from typing import Any, Dict
 import PIL.Image
 
 from .config import GlobalConfig, LocalConfig
-from .errors import MissingHotmapError, UninitializedBackendError, UnsupportedBackendError
+from .errors import (
+    MissingHotmapError,
+    UninitializedBackendError,
+    UnsupportedBackendError,
+)
 from .fileresolver import FileResolver
 from .imagelogger import ImageLogger
 
-log = logging.getLogger('guibot.finder')
+_logger = logging.getLogger("guibot.finder")
 
-__all__ = ['CVParameter', 'Finder', 'AutoPyFinder', 'ContourFinder', 'TemplateFinder',
-           'FeatureFinder', 'CascadeFinder', 'TextFinder', 'TemplateFeatureFinder',
-           'DeepFinder', 'HybridFinder']
+__all__ = (
+    "CVParameter",
+    "Finder",
+    "AutoPyFinder",
+    "ContourFinder",
+    "TemplateFinder",
+    "FeatureFinder",
+    "CascadeFinder",
+    "TextFinder",
+    "TemplateFeatureFinder",
+    "DeepFinder",
+    "HybridFinder",
+)
 
 
 class CVParameter:
     """A class for a single parameter used for CV backend configuration."""
 
-    def __init__(self, value,
-                 min_val=None, max_val=None,
-                 delta=10.0, tolerance=1.0,
-                 fixed=True, enumerated=False):
+    def __init__(
+        self,
+        value,
+        min_val=None,
+        max_val=None,
+        delta=10.0,
+        tolerance=1.0,
+        fixed=True,
+        enumerated=False,
+    ):
         """
         Build a computer vision parameter.
 
@@ -114,8 +134,15 @@ class CVParameter:
         :returns: special syntax representation of the parameter
         :rtype: str
         """
-        return ("<value='%s' min='%s' max='%s' delta='%s' tolerance='%s' fixed='%s' enumerated='%s'>"
-                % (self.value, self.min_val, self.max_val, self.delta, self.tolerance, self.fixed, self.enumerated))
+        return "<value='%s' min='%s' max='%s' delta='%s' tolerance='%s' fixed='%s' enumerated='%s'>" % (
+            self.value,
+            self.min_val,
+            self.max_val,
+            self.delta,
+            self.tolerance,
+            self.fixed,
+            self.enumerated,
+        )
 
     def __eq__(self, other):
         """
@@ -139,9 +166,11 @@ class CVParameter:
         :raises: :py:class:`ValueError` if unsupported type is encountered
         """
         args = []
-        string_args = re.match(r"<value='(.+)' min='(-?[\d.None]+)' max='([\d.None]+)'"
-                               r" delta='([\d.]+)' tolerance='([\d.]+)' fixed='(\w+)' enumerated='(\w+)'>",
-                               raw).group(1, 2, 3, 4, 5, 6)
+        string_args = re.match(
+            r"<value='(.+)' min='(-?[\d.None]+)' max='([\d.None]+)'"
+            r" delta='([\d.]+)' tolerance='([\d.]+)' fixed='(\w+)' enumerated='(\w+)'>",
+            raw,
+        ).group(1, 2, 3, 4, 5, 6)
 
         for arg in string_args:
             if arg == "None":
@@ -157,10 +186,10 @@ class CVParameter:
             else:
                 arg = str(arg)
 
-            log.log(9, "%s %s", arg, type(arg))
+            _logger.log(9, "%s %s", arg, type(arg))
             args.append(arg)
 
-        log.log(9, "%s", args)
+        _logger.log(9, "%s", args)
         return CVParameter(*args)
 
     def random_value(self, mu=None, sigma=None):
@@ -196,7 +225,7 @@ class CVParameter:
             value = random.randint(0, 1)
             return value == 1
         else:
-            log.warning("Cannot generate random value for CV parameters other than float, int, and bool")
+            _logger.warning("Cannot generate random value for CV parameters other than float, int, and bool")
             return self.value
 
 
@@ -240,7 +269,7 @@ class Finder(LocalConfig):
         if not parser.has_section("find"):
             raise OSError("No image matching configuration can be found")
         try:
-            backend_name = parser.get("find", 'backend')
+            backend_name = parser.get("find", "backend")
         except config.NoOptionError:
             backend_name = GlobalConfig.find_backend
 
@@ -267,7 +296,7 @@ class Finder(LocalConfig):
 
         for category in finder.params.keys():
             if parser.has_section(category):
-                section_backend = parser.get(category, 'backend')
+                section_backend = parser.get(category, "backend")
                 if section_backend != finder.params[category]["backend"]:
                     finder.configure_backend(backend=section_backend, category=category, reset=False)
                 for option in parser.options(category):
@@ -276,7 +305,7 @@ class Finder(LocalConfig):
                     param_string = parser.get(category, option)
                     if isinstance(finder.params[category][option], CVParameter):
                         param = CVParameter.from_string(param_string)
-                        log.log(9, "%s %s", param_string, param)
+                        _logger.log(9, "%s %s", param_string, param)
                     else:
                         param = param_string
                     finder.params[category][option] = param
@@ -301,14 +330,14 @@ class Finder(LocalConfig):
         for section in sections:
             if not parser.has_section(section):
                 parser.add_section(section)
-            parser.set(section, 'backend', finder.params[section]["backend"])
+            parser.set(section, "backend", finder.params[section]["backend"])
             for option in finder.params[section]:
-                log.log(9, "%s %s", section, option)
+                _logger.log(9, "%s %s", section, option)
                 parser.set(section, option, finder.params[section][option])
 
         if not filename.endswith(".match"):
             filename += ".match"
-        with open(filename, 'w') as configfile:
+        with open(filename, "w") as configfile:
             configfile.write("# IMAGE MATCH DATA\n")
             parser.write(configfile)
 
@@ -318,8 +347,17 @@ class Finder(LocalConfig):
 
         # available and currently fully compatible methods
         self.categories["find"] = "find_methods"
-        self.algorithms["find_methods"] = ["autopy", "contour", "template", "feature",
-                                           "cascade", "text", "tempfeat", "deep", "hybrid"]
+        self.algorithms["find_methods"] = [
+            "autopy",
+            "contour",
+            "template",
+            "feature",
+            "cascade",
+            "text",
+            "tempfeat",
+            "deep",
+            "hybrid",
+        ]
 
         # other attributes
         self.imglog = ImageLogger()
@@ -337,14 +375,16 @@ class Finder(LocalConfig):
         if backend is None:
             backend = GlobalConfig.find_backend
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
-        log.log(9, "Setting backend for %s to %s", category, backend)
+        _logger.log(9, "Setting backend for %s to %s", category, backend)
         self.params[category] = {}
         self.params[category]["backend"] = backend
         self.params[category]["similarity"] = CVParameter(0.8, 0.0, 1.0)
-        log.log(9, "%s %s\n", category, self.params[category])
+        _logger.log(9, "%s %s\n", category, self.params[category])
 
     def configure_backend(self, backend=None, category="find", reset=False):
         """
@@ -382,8 +422,9 @@ class Finder(LocalConfig):
                  supported backend categories
         """
         if category not in self.categories.keys():
-            raise UnsupportedBackendError("Category '%s' not among the "
-                                          "supported %s" % (category, self.categories.keys()))
+            raise UnsupportedBackendError(
+                "Category '%s' not among the " "supported %s" % (category, self.categories.keys())
+            )
 
         for key, value in self.params[category].items():
             if not isinstance(value, CVParameter):
@@ -397,7 +438,7 @@ class Finder(LocalConfig):
                 value.fixed = True
             else:
                 value.fixed = not mark
-            log.debug("Setting %s/%s to fixed=%s for calibration", category, key, value.fixed)
+            _logger.debug("Setting %s/%s to fixed=%s for calibration", category, key, value.fixed)
 
     def copy(self):
         """
@@ -531,19 +572,21 @@ class AutoPyFinder(Finder):
             self._bitmapcache[needle.filename] = autopy_needle
 
         # TODO: Use in-memory conversion
-        with NamedTemporaryFile(prefix='guibot', suffix='.png') as f:
+        with NamedTemporaryFile(prefix="guibot", suffix=".png") as f:
             haystack.save(f.name)
             autopy_screenshot = bitmap.Bitmap.open(f.name)
 
         autopy_tolerance = 1.0 - self.params["find"]["similarity"].value
-        log.debug("Performing autopy template matching with tolerance %s (color)",
-                  autopy_tolerance)
+        _logger.debug(
+            "Performing autopy template matching with tolerance %s (color)",
+            autopy_tolerance,
+        )
 
         # TODO: since only the coordinates are available and fuzzy areas of
         # matches are returned we need to ask autopy team for returning
         # the matching rates as well
         coord = autopy_screenshot.find_bitmap(autopy_needle, autopy_tolerance)
-        log.debug("Best acceptable match starting at %s", coord)
+        _logger.debug("Best acceptable match starting at %s", coord)
 
         if coord is not None:
             coord = (int(coord[0]), int(coord[1]))
@@ -554,8 +597,10 @@ class AutoPyFinder(Finder):
             w, h = needle.width, needle.height
             dx, dy = needle.center_offset.x, needle.center_offset.y
             from .match import Match
+
             matches = [Match(x, y, w, h, dx, dy, similarity)]
             from PIL import ImageDraw
+
             draw = ImageDraw.Draw(self.imglog.hotmaps[-1])
             draw.rectangle((x, y, x + w, y + h), outline=(0, 0, 255))
             del draw
@@ -603,10 +648,12 @@ class ContourFinder(Finder):
         elif category == "threshold" and backend is None:
             backend = GlobalConfig.contour_threshold_backend
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
-        log.log(9, "Setting backend for %s to %s", category, backend)
+        _logger.log(9, "Setting backend for %s to %s", category, backend)
         self.params[category] = {}
         self.params[category]["backend"] = backend
 
@@ -712,6 +759,7 @@ class ContourFinder(Finder):
                 assert distances[i, j] >= 0.0
 
         from .match import Match
+
         matches = []
         nx, ny, nw, nh = cv2.boundingRect(numpy.concatenate(needle_contours, axis=0))
         while True:
@@ -727,37 +775,72 @@ class ContourFinder(Finder):
                 matching_haystack_contours.append(haystack_contours[index[0][0]])
             average_distance = numpy.average(matching_haystack_distances)
             required_distance = 1.0 - self.params["find"]["similarity"].value
-            logging.debug("Average distance to next needle shape is %s of max allowed %s",
-                          average_distance, required_distance)
+            logging.debug(
+                "Average distance to next needle shape is %s of max allowed %s",
+                average_distance,
+                required_distance,
+            )
             if average_distance > required_distance:
                 break
             else:
                 shape = numpy.concatenate(matching_haystack_contours, axis=0)
                 x, y, w, h = cv2.boundingRect(shape)
                 # calculate needle upleft and downright points to return its (0,0) location
-                needle_upleft = (max(int((x - nx) * float(w) / nw), 0), max(int((y - ny) * float(h) / nh), 0))
-                needle_downright = (min(int(needle_upleft[0] + needle.width * float(w) / nw), haystack.width),
-                                    min(int(needle_upleft[1] + needle.height * float(h) / nh), haystack.height))
-                needle_center_offset = (needle.center_offset.x * float(w) / nw,
-                                        needle.center_offset.y * float(h) / nh)
-                cv2.rectangle(self.imglog.hotmaps[-1], needle_upleft, needle_downright, (0, 0, 0), 2)
-                cv2.rectangle(self.imglog.hotmaps[-1], needle_upleft, needle_downright, (255, 255, 255), 1)
+                needle_upleft = (
+                    max(int((x - nx) * float(w) / nw), 0),
+                    max(int((y - ny) * float(h) / nh), 0),
+                )
+                needle_downright = (
+                    min(
+                        int(needle_upleft[0] + needle.width * float(w) / nw),
+                        haystack.width,
+                    ),
+                    min(
+                        int(needle_upleft[1] + needle.height * float(h) / nh),
+                        haystack.height,
+                    ),
+                )
+                needle_center_offset = (
+                    needle.center_offset.x * float(w) / nw,
+                    needle.center_offset.y * float(h) / nh,
+                )
+                cv2.rectangle(
+                    self.imglog.hotmaps[-1],
+                    needle_upleft,
+                    needle_downright,
+                    (0, 0, 0),
+                    2,
+                )
+                cv2.rectangle(
+                    self.imglog.hotmaps[-1],
+                    needle_upleft,
+                    needle_downright,
+                    (255, 255, 255),
+                    1,
+                )
                 # NOTE: to extract the region of interest just do:
                 # roi = thresh_haystack[y:y+h,x:x+w]
                 similarity = 1.0 - average_distance
                 self.imglog.similarities.append(similarity)
                 self.imglog.locations.append(needle_upleft)
-                matches.append(Match(needle_upleft[0], needle_upleft[1],
-                                     needle_downright[0] - needle_upleft[0],
-                                     needle_downright[1] - needle_upleft[1],
-                                     needle_center_offset[0], needle_center_offset[1],
-                                     similarity))
+                matches.append(
+                    Match(
+                        needle_upleft[0],
+                        needle_upleft[1],
+                        needle_downright[0] - needle_upleft[0],
+                        needle_downright[1] - needle_upleft[1],
+                        needle_center_offset[0],
+                        needle_center_offset[1],
+                        similarity,
+                    )
+                )
 
         self.imglog.log(30)
         return matches
 
     def _binarize_image(self, image, log=False):
         import cv2
+
         # blur first in order to avoid unwonted edges caused from noise
         blurSize = self.params["threshold"]["blurKernelSize"].value
         blurDeviation = self.params["threshold"]["blurKernelSigma"].value
@@ -773,21 +856,27 @@ class ContourFinder(Finder):
 
         # second stage: thresholding
         if self.params["threshold"]["backend"] == "normal":
-            _, thresh_image = cv2.threshold(blur_image,
-                                            self.params["threshold"]["thresholdValue"].value,
-                                            self.params["threshold"]["thresholdMax"].value,
-                                            self.params["threshold"]["thresholdType"].value)
+            _, thresh_image = cv2.threshold(
+                blur_image,
+                self.params["threshold"]["thresholdValue"].value,
+                self.params["threshold"]["thresholdMax"].value,
+                self.params["threshold"]["thresholdType"].value,
+            )
         elif self.params["threshold"]["backend"] == "adaptive":
-            thresh_image = cv2.adaptiveThreshold(blur_image,
-                                                 self.params["threshold"]["thresholdMax"].value,
-                                                 self.params["threshold"]["adaptiveMethod"].value,
-                                                 self.params["threshold"]["thresholdType"].value,
-                                                 self.params["threshold"]["blockSize"].value,
-                                                 self.params["threshold"]["constant"].value)
+            thresh_image = cv2.adaptiveThreshold(
+                blur_image,
+                self.params["threshold"]["thresholdMax"].value,
+                self.params["threshold"]["adaptiveMethod"].value,
+                self.params["threshold"]["thresholdType"].value,
+                self.params["threshold"]["blockSize"].value,
+                self.params["threshold"]["constant"].value,
+            )
         elif self.params["threshold"]["backend"] == "canny":
-            thresh_image = cv2.Canny(blur_image,
-                                     self.params["threshold"]["threshold1"].value,
-                                     self.params["threshold"]["threshold2"].value)
+            thresh_image = cv2.Canny(
+                blur_image,
+                self.params["threshold"]["threshold1"].value,
+                self.params["threshold"]["threshold2"].value,
+            )
 
         if log:
             self.imglog.hotmaps.append(thresh_image)
@@ -795,9 +884,12 @@ class ContourFinder(Finder):
 
     def _extract_contours(self, countours_image, log=False):
         import cv2
-        rargs = cv2.findContours(countours_image,
-                                 self.params["contour"]["retrievalMode"].value,
-                                 self.params["contour"]["approxMethod"].value)
+
+        rargs = cv2.findContours(
+            countours_image,
+            self.params["contour"]["retrievalMode"].value,
+            self.params["contour"]["approxMethod"].value,
+        )
         if len(rargs) == 3:
             _, contours, hierarchy = rargs
         else:
@@ -825,14 +917,20 @@ class ContourFinder(Finder):
         elif len(self.imglog.hotmaps) == 0:
             raise MissingHotmapError("No matching was performed in order to be image logged")
 
-        self.imglog.dump_hotmap("imglog%s-3hotmap-1threshold.png" % self.imglog.printable_step,
-                                self.imglog.hotmaps[0])
-        self.imglog.dump_hotmap("imglog%s-3hotmap-2contours.png" % self.imglog.printable_step,
-                                self.imglog.hotmaps[1])
+        self.imglog.dump_hotmap(
+            "imglog%s-3hotmap-1threshold.png" % self.imglog.printable_step,
+            self.imglog.hotmaps[0],
+        )
+        self.imglog.dump_hotmap(
+            "imglog%s-3hotmap-2contours.png" % self.imglog.printable_step,
+            self.imglog.hotmaps[1],
+        )
 
         similarity = self.imglog.similarities[-1] if len(self.imglog.similarities) > 0 else 0.0
-        self.imglog.dump_hotmap("imglog%s-3hotmap-%s.png" % (self.imglog.printable_step, similarity),
-                                self.imglog.hotmaps[-1])
+        self.imglog.dump_hotmap(
+            "imglog%s-3hotmap-%s.png" % (self.imglog.printable_step, similarity),
+            self.imglog.hotmaps[-1],
+        )
 
         self.imglog.clear()
         ImageLogger.step += 1
@@ -848,7 +946,11 @@ class TemplateFinder(Finder):
         # available and currently fully compatible methods
         self.categories["template"] = "template_matchers"
         # we only use the normalized version of "sqdiff", "ccorr", and "ccoeff"
-        self.algorithms["template_matchers"] = ("sqdiff_normed", "ccorr_normed", "ccoeff_normed")
+        self.algorithms["template_matchers"] = (
+            "sqdiff_normed",
+            "ccorr_normed",
+            "ccoeff_normed",
+        )
 
         # additional preparation (no synchronization available)
         if configure:
@@ -867,14 +969,16 @@ class TemplateFinder(Finder):
         if backend is None:
             backend = GlobalConfig.template_match_backend
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
-        log.log(9, "Setting backend for %s to %s", category, backend)
+        _logger.log(9, "Setting backend for %s to %s", category, backend)
         self.params[category] = {}
         self.params[category]["backend"] = backend
         self.params[category]["nocolor"] = CVParameter(False)
-        log.log(9, "%s %s\n", category, self.params[category])
+        _logger.log(9, "%s %s\n", category, self.params[category])
 
     def configure_backend(self, backend=None, category="template", reset=False):
         """
@@ -902,16 +1006,24 @@ class TemplateFinder(Finder):
         self.imglog.dump_matched_images()
 
         if self.params["template"]["backend"] not in self.algorithms["template_matchers"]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (self.params["template"]["backend"],
-                                                  self.algorithms["template_matchers"]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s"
+                % (
+                    self.params["template"]["backend"],
+                    self.algorithms["template_matchers"],
+                )
+            )
         match_template = self.params["template"]["backend"]
         no_color = self.params["template"]["nocolor"].value
-        log.debug("Performing %s template matching %s color",
-                  match_template, "without" if no_color else "with")
+        _logger.debug(
+            "Performing %s template matching %s color",
+            match_template,
+            "without" if no_color else "with",
+        )
         result = self._match_template(needle, haystack, no_color, match_template)
         if result is None:
-            log.warning("OpenCV's template matching returned no result")
+            _logger.warning("OpenCV's template matching returned no result")
             return []
         # switch max and min for sqdiff and sqdiff_normed (to always look for max)
         if self.params["template"]["backend"] in ("sqdiff_normed"):
@@ -919,6 +1031,7 @@ class TemplateFinder(Finder):
 
         import cv2
         import numpy
+
         universal_hotmap = result * 255.0
         final_hotmap = numpy.array(self.imglog.haystack.pil_image)
         if self.params["template"]["nocolor"].value:
@@ -927,38 +1040,53 @@ class TemplateFinder(Finder):
         # extract maxima once for each needle size region
         similarity = self.params["find"]["similarity"].value
         from .match import Match
+
         matches = []
         while True:
 
             minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result)
             # rectify to the [0,1] interval to avoid negative values in some methods
             maxVal = min(max(maxVal, 0.0), 1.0)
-            log.debug('Next best match with value %s (similarity %s) and location (x,y) %s',
-                      str(maxVal), similarity, str(maxLoc))
+            _logger.debug(
+                "Next best match with value %s (similarity %s) and location (x,y) %s",
+                str(maxVal),
+                similarity,
+                str(maxLoc),
+            )
 
             if maxVal < similarity:
                 if len(matches) == 0:
                     self.imglog.similarities.append(maxVal)
                     self.imglog.locations.append(maxLoc)
                     current_hotmap = numpy.copy(universal_hotmap)
-                    cv2.circle(current_hotmap, (maxLoc[0], maxLoc[1]), int(30 * maxVal), (255, 255, 255))
+                    cv2.circle(
+                        current_hotmap,
+                        (maxLoc[0], maxLoc[1]),
+                        int(30 * maxVal),
+                        (255, 255, 255),
+                    )
                     self.imglog.hotmaps.append(current_hotmap)
                     self.imglog.hotmaps.append(final_hotmap)
 
-                log.debug("Next best match is not acceptable")
+                _logger.debug("Next best match is not acceptable")
                 break
             else:
                 self.imglog.similarities.append(maxVal)
                 self.imglog.locations.append(maxLoc)
                 current_hotmap = numpy.copy(universal_hotmap)
-                cv2.circle(current_hotmap, (maxLoc[0], maxLoc[1]), int(30 * maxVal), (255, 255, 255))
+                cv2.circle(
+                    current_hotmap,
+                    (maxLoc[0], maxLoc[1]),
+                    int(30 * maxVal),
+                    (255, 255, 255),
+                )
                 x, y = maxLoc
                 w, h = needle.width, needle.height
                 dx, dy = needle.center_offset.x, needle.center_offset.y
                 cv2.rectangle(final_hotmap, (x, y), (x + w, y + h), (0, 0, 0), 2)
                 cv2.rectangle(final_hotmap, (x, y), (x + w, y + h), (255, 255, 255), 1)
                 self.imglog.hotmaps.append(current_hotmap)
-                log.debug("Next best match is acceptable")
+                _logger.debug("Next best match is acceptable")
                 matches.append(Match(x, y, w, h, dx, dy, maxVal))
                 if similarity == 0.0:
                     # return just one match if no similarity requirement
@@ -972,16 +1100,28 @@ class TemplateFinder(Finder):
             match_y1 = min(maxLoc[1] + int(0.5 * needle.height), res_h)
 
             # log this only if performing deep internal debugging
-            log.log(9, "Wipe image matches in x [%s, %s]/[%s, %s]",
-                    match_x0, match_x1, 0, res_w)
-            log.log(9, "Wipe image matches in y [%s, %s]/[%s, %s]",
-                    match_y0, match_y1, 0, res_h)
+            _logger.log(
+                9,
+                "Wipe image matches in x [%s, %s]/[%s, %s]",
+                match_x0,
+                match_x1,
+                0,
+                res_w,
+            )
+            _logger.log(
+                9,
+                "Wipe image matches in y [%s, %s]/[%s, %s]",
+                match_y0,
+                match_y1,
+                0,
+                res_h,
+            )
 
             # clean found image to look for next safe distance match
             result[match_y0:match_y1, match_x0:match_x1] = 0.0
 
-            log.log(9, "Total maxima up to the point are %i", len(matches))
-        log.debug("A total of %i matches found", len(matches))
+            _logger.log(9, "Total maxima up to the point are %i", len(matches))
+        _logger.debug("A total of %i matches found", len(matches))
         self.imglog.hotmaps.append(final_hotmap)
         self.imglog.log(30)
 
@@ -996,15 +1136,26 @@ class TemplateFinder(Finder):
         """
         # sanity check: needle size must be smaller than haystack
         if haystack.width < needle.width or haystack.height < needle.height:
-            log.warning("The size of the searched image (%sx%s) does not fit the search region (%sx%s)",
-                        needle.width, needle.height, haystack.width, haystack.height)
+            _logger.warning(
+                "The size of the searched image (%sx%s) does not fit the search region (%sx%s)",
+                needle.width,
+                needle.height,
+                haystack.width,
+                haystack.height,
+            )
             return None
 
         import cv2
         import numpy
-        methods = {"sqdiff": cv2.TM_SQDIFF, "sqdiff_normed": cv2.TM_SQDIFF_NORMED,
-                   "ccorr": cv2.TM_CCORR, "ccorr_normed": cv2.TM_CCORR_NORMED,
-                   "ccoeff": cv2.TM_CCOEFF, "ccoeff_normed": cv2.TM_CCOEFF_NORMED}
+
+        methods = {
+            "sqdiff": cv2.TM_SQDIFF,
+            "sqdiff_normed": cv2.TM_SQDIFF_NORMED,
+            "ccorr": cv2.TM_CCORR,
+            "ccorr_normed": cv2.TM_CCORR_NORMED,
+            "ccoeff": cv2.TM_CCOEFF,
+            "ccoeff_normed": cv2.TM_CCOEFF_NORMED,
+        }
         if method not in methods.keys():
             raise UnsupportedBackendError("Supported algorithms are in conflict")
 
@@ -1037,13 +1188,18 @@ class TemplateFinder(Finder):
             raise MissingHotmapError("No matching was performed in order to be image logged")
 
         for i in range(len(self.imglog.similarities)):
-            name = "imglog%s-3hotmap-%stemplate-%s.png" % (self.imglog.printable_step,
-                                                           i + 1, self.imglog.similarities[i])
+            name = "imglog%s-3hotmap-%stemplate-%s.png" % (
+                self.imglog.printable_step,
+                i + 1,
+                self.imglog.similarities[i],
+            )
             self.imglog.dump_hotmap(name, self.imglog.hotmaps[i])
 
         similarity = self.imglog.similarities[-1] if len(self.imglog.similarities) > 0 else 0.0
-        self.imglog.dump_hotmap("imglog%s-3hotmap-%s.png" % (self.imglog.printable_step, similarity),
-                                self.imglog.hotmaps[-1])
+        self.imglog.dump_hotmap(
+            "imglog%s-3hotmap-%s.png" % (self.imglog.printable_step, similarity),
+            self.imglog.hotmaps[-1],
+        )
 
         self.imglog.clear()
         ImageLogger.step += 1
@@ -1067,11 +1223,23 @@ class FeatureFinder(Finder):
         self.categories["fextract"] = "feature_extractors"
         self.categories["fmatch"] = "feature_matchers"
         self.algorithms["feature_projectors"] = ("mixed",)
-        self.algorithms["feature_matchers"] = ("BruteForce", "BruteForce-L1", "BruteForce-Hamming",
-                                               "BruteForce-Hamming(2)")
-        self.algorithms["feature_detectors"] = ("ORB", "BRISK", "KAZE", "AKAZE", "MSER",
-                                                "AgastFeatureDetector", "FastFeatureDetector", "GFTTDetector",
-                                                "SimpleBlobDetector")
+        self.algorithms["feature_matchers"] = (
+            "BruteForce",
+            "BruteForce-L1",
+            "BruteForce-Hamming",
+            "BruteForce-Hamming(2)",
+        )
+        self.algorithms["feature_detectors"] = (
+            "ORB",
+            "BRISK",
+            "KAZE",
+            "AKAZE",
+            "MSER",
+            "AgastFeatureDetector",
+            "FastFeatureDetector",
+            "GFTTDetector",
+            "SimpleBlobDetector",
+        )
         # TODO: we could also support "StereoSGBM" but it needs initialization arguments
         # BUG: "KAZE", "AKAZE" we get internal error when using KAZE/AKAZE even though it should be possible
         self.algorithms["feature_extractors"] = ("ORB", "BRISK")
@@ -1101,10 +1269,12 @@ class FeatureFinder(Finder):
         elif category == "fmatch" and backend is None:
             backend = GlobalConfig.feature_match_backend
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
-        log.log(9, "Setting backend for %s to %s", category, backend)
+        _logger.log(9, "Setting backend for %s to %s", category, backend)
         self.params[category] = {}
         self.params[category]["backend"] = backend
 
@@ -1121,11 +1291,13 @@ class FeatureFinder(Finder):
             self.params[category]["hzoom"] = CVParameter(1.0, 1.0, 10.0, 2.5)
 
             import cv2
+
             feature_detector_create = getattr(cv2, "%s_create" % backend)
             backend_obj = feature_detector_create()
 
         elif category == "fextract":
             import cv2
+
             descriptor_extractor_create = getattr(cv2, "%s_create" % backend)
             backend_obj = descriptor_extractor_create()
 
@@ -1147,6 +1319,7 @@ class FeatureFinder(Finder):
                 else:
 
                     import cv2
+
                     # NOTE: descriptor matcher creation is kept the old way while feature
                     # detection and extraction not - example of the untidy maintenance of OpenCV
                     backend_obj = cv2.DescriptorMatcher_create(backend)
@@ -1158,7 +1331,7 @@ class FeatureFinder(Finder):
 
         # examine the interface of the OpenCV backend to add extra parameters
         if category in ["fdetect", "fextract", "fmatch"]:
-            log.log(9, "%s %s", backend_obj, dir(backend_obj))
+            _logger.log(9, "%s %s", backend_obj, dir(backend_obj))
             for attribute in dir(backend_obj):
                 if not attribute.startswith("get"):
                     continue
@@ -1185,7 +1358,7 @@ class FeatureFinder(Finder):
                     self.params[category][param] = CVParameter(val, 2, None, 100, 25)
                 else:
                     self.params[category][param] = CVParameter(val)
-                log.log(9, "%s=%s", param, val)
+                _logger.log(9, "%s=%s", param, val)
 
     def configure_backend(self, backend=None, category="feature", reset=False):
         """
@@ -1207,15 +1380,13 @@ class FeatureFinder(Finder):
         """
         self.__configure_backend(backend, category, reset)
 
-    def __configure(self, feature_detect=None, feature_extract=None,
-                    feature_match=None, reset=True, **kwargs):
+    def __configure(self, feature_detect=None, feature_extract=None, feature_match=None, reset=True, **kwargs):
         self.__configure_backend(category="feature", reset=reset)
         self.__configure_backend(feature_detect, "fdetect")
         self.__configure_backend(feature_extract, "fextract")
         self.__configure_backend(feature_match, "fmatch")
 
-    def configure(self, feature_detect=None, feature_extract=None,
-                  feature_match=None, reset=True, **kwargs):
+    def configure(self, feature_detect=None, feature_extract=None, feature_match=None, reset=True, **kwargs):
         """
         Custom implementation of the base method.
 
@@ -1243,14 +1414,17 @@ class FeatureFinder(Finder):
             return
         elif category == "fdetect":
             import cv2
+
             feature_detector_create = getattr(cv2, "%s_create" % backend)
             backend_obj = feature_detector_create()
         elif category == "fextract":
             import cv2
+
             descriptor_extractor_create = getattr(cv2, "%s_create" % backend)
             backend_obj = descriptor_extractor_create()
         elif category == "fmatch":
             import cv2
+
             # NOTE: descriptor matcher creation is kept the old way while feature
             # detection and extraction not - example of the untidy maintenance of OpenCV
             backend_obj = cv2.DescriptorMatcher_create(backend)
@@ -1272,7 +1446,7 @@ class FeatureFinder(Finder):
                     continue
                 set_param = getattr(backend_obj, set_attribute)
                 set_param(val)
-                log.log(9, "Synced %s to %s", param, val)
+                _logger.log(9, "Synced %s to %s", param, val)
                 self.params[category][param].value = val
 
         if category == "fdetect":
@@ -1290,15 +1464,13 @@ class FeatureFinder(Finder):
         """
         self.__synchronize_backend(backend, category, reset)
 
-    def __synchronize(self, feature_detect=None, feature_extract=None,
-                      feature_match=None, reset=True):
+    def __synchronize(self, feature_detect=None, feature_extract=None, feature_match=None, reset=True):
         self.__synchronize_backend(category="feature", reset=reset)
         self.__synchronize_backend(feature_detect, "fdetect")
         self.__synchronize_backend(feature_extract, "fextract")
         self.__synchronize_backend(feature_match, "fmatch")
 
-    def synchronize(self, feature_detect=None, feature_extract=None,
-                    feature_match=None, reset=True):
+    def synchronize(self, feature_detect=None, feature_extract=None, feature_match=None, reset=True):
         """
         Custom implementation of the base method.
 
@@ -1334,6 +1506,7 @@ class FeatureFinder(Finder):
 
         import cv2
         import numpy
+
         ngray = cv2.cvtColor(numpy.array(needle.pil_image), cv2.COLOR_RGB2GRAY)
         hgray = cv2.cvtColor(numpy.array(haystack.pil_image), cv2.COLOR_RGB2GRAY)
         self.imglog.hotmaps.append(numpy.array(haystack.pil_image))
@@ -1343,14 +1516,21 @@ class FeatureFinder(Finder):
 
         # project more points for debugging purposes and image logging
         npoints = []
-        npoints.extend([(0, 0), (needle.width, 0), (0, needle.height),
-                        (needle.width, needle.height)])
+        npoints.extend(
+            [
+                (0, 0),
+                (needle.width, 0),
+                (0, needle.height),
+                (needle.width, needle.height),
+            ]
+        )
         npoints.append((needle.width / 2, needle.height / 2))
 
         similarity = self.params["find"]["similarity"].value
         hpoints = self._project_features(npoints, ngray, hgray, similarity)
         if hpoints is not None and len(hpoints) > 0:
             from .match import Match
+
             x, y = hpoints[0]
             w, h = tuple(numpy.abs(numpy.subtract(hpoints[3], hpoints[0])))
             # TODO: projecting offset requires more effort
@@ -1371,38 +1551,58 @@ class FeatureFinder(Finder):
         self.imglog.locations.append((0, 0))
         self.imglog.similarities.append(0.0)
 
-        log.debug("Performing %s feature matching (no color)",
-                  "-".join([self.params["fdetect"]["backend"],
-                            self.params["fextract"]["backend"],
-                            self.params["fmatch"]["backend"]]))
-        nkp, ndc, hkp, hdc = self._detect_features(ngray, hgray,
-                                                   self.params["fdetect"]["backend"],
-                                                   self.params["fextract"]["backend"])
+        _logger.debug(
+            "Performing %s feature matching (no color)",
+            "-".join(
+                [
+                    self.params["fdetect"]["backend"],
+                    self.params["fextract"]["backend"],
+                    self.params["fmatch"]["backend"],
+                ]
+            ),
+        )
+        nkp, ndc, hkp, hdc = self._detect_features(
+            ngray,
+            hgray,
+            self.params["fdetect"]["backend"],
+            self.params["fextract"]["backend"],
+        )
 
         min_features = self.params["feature"]["minDetectedFeatures"].value
         if len(nkp) < min_features or len(hkp) < min_features:
-            log.debug("No acceptable best match after feature detection: "
-                      "only %s\\%s needle and %s\\%s haystack features detected",
-                      len(nkp), min_features, len(hkp), min_features)
+            _logger.debug(
+                "No acceptable best match after feature detection: "
+                "only %s\\%s needle and %s\\%s haystack features detected",
+                len(nkp),
+                min_features,
+                len(hkp),
+                min_features,
+            )
             return None
 
-        mnkp, mhkp = self._match_features(nkp, ndc, hkp, hdc,
-                                          self.params["fmatch"]["backend"])
+        mnkp, mhkp = self._match_features(nkp, ndc, hkp, hdc, self.params["fmatch"]["backend"])
 
         min_features = self.params["feature"]["minMatchedFeatures"].value
         if self.imglog.similarities[-1] < similarity or len(mnkp) < min_features:
-            log.debug("No acceptable best match after feature matching:\n"
-                      "- matched features %s of %s required\n"
-                      "- best match similarity %s of %s required",
-                      len(mnkp), min_features,
-                      self.imglog.similarities[-1], similarity)
+            _logger.debug(
+                "No acceptable best match after feature matching:\n"
+                "- matched features %s of %s required\n"
+                "- best match similarity %s of %s required",
+                len(mnkp),
+                min_features,
+                self.imglog.similarities[-1],
+                similarity,
+            )
             return None
 
         locations_in_haystack = self._project_locations(locations_in_needle, mnkp, mhkp)
         if self.imglog.similarities[-1] < similarity:
-            log.debug("No acceptable best match after RANSAC projection: "
-                      "best match similarity %s is less than required %s",
-                      self.imglog.similarities[-1], similarity)
+            _logger.debug(
+                "No acceptable best match after RANSAC projection: "
+                "best match similarity %s is less than required %s",
+                self.imglog.similarities[-1],
+                similarity,
+            )
             return None
         else:
             self._log_features(30, self.imglog.locations, self.imglog.hotmaps[-1], 3, 0, 0, 255)
@@ -1419,16 +1619,16 @@ class FeatureFinder(Finder):
 
         # zoom in if explicitly set
         import cv2
+
         if nfactor > 1.0:
-            log.debug("Zooming x%i needle", nfactor)
+            _logger.debug("Zooming x%i needle", nfactor)
             ngray = cv2.resize(ngray, None, fx=nfactor, fy=nfactor)
         if hfactor > 1.0:
-            log.debug("Zooming x%i haystack", hfactor)
+            _logger.debug("Zooming x%i haystack", hfactor)
             hgray = cv2.resize(hgray, None, fx=hfactor, fy=hfactor)
 
         # include only methods tested for compatibility
-        if (detect in self.algorithms["feature_detectors"]
-                and extract in self.algorithms["feature_extractors"]):
+        if detect in self.algorithms["feature_detectors"] and extract in self.algorithms["feature_extractors"]:
             self.synchronize_backend(category="fdetect")
             self.synchronize_backend(category="fextract")
 
@@ -1441,26 +1641,34 @@ class FeatureFinder(Finder):
             (hkeypoints, hdescriptors) = self.extractor.compute(hgray, hkeypoints)
 
         else:
-            raise UnsupportedBackendError("Feature detector %s is not among the supported"
-                                          "ones %s" % (detect, self.algorithms[self.categories["fdetect"]]))
+            raise UnsupportedBackendError(
+                "Feature detector %s is not among the supported"
+                "ones %s" % (detect, self.algorithms[self.categories["fdetect"]])
+            )
 
         # reduce keypoint coordinates to the original image size
         for nkeypoint in nkeypoints:
-            nkeypoint.pt = (int(nkeypoint.pt[0] / nfactor),
-                            int(nkeypoint.pt[1] / nfactor))
+            nkeypoint.pt = (
+                int(nkeypoint.pt[0] / nfactor),
+                int(nkeypoint.pt[1] / nfactor),
+            )
         for hkeypoint in hkeypoints:
-            hkeypoint.pt = (int(hkeypoint.pt[0] / hfactor),
-                            int(hkeypoint.pt[1] / hfactor))
+            hkeypoint.pt = (
+                int(hkeypoint.pt[0] / hfactor),
+                int(hkeypoint.pt[1] / hfactor),
+            )
 
-        log.debug("Detected %s keypoints in needle and %s in haystack",
-                  len(nkeypoints), len(hkeypoints))
+        _logger.debug(
+            "Detected %s keypoints in needle and %s in haystack",
+            len(nkeypoints),
+            len(hkeypoints),
+        )
         hkp_locations = [hkp.pt for hkp in hkeypoints]
         self._log_features(10, hkp_locations, self.imglog.hotmaps[-4], 3, 255, 0, 0)
 
         return (nkeypoints, ndescriptors, hkeypoints, hdescriptors)
 
-    def _match_features(self, nkeypoints, ndescriptors,
-                        hkeypoints, hdescriptors, match):
+    def _match_features(self, nkeypoints, ndescriptors, hkeypoints, hdescriptors, match):
         """
         EXTRA DOCSTRING: Feature matching backend - matching stage (2).
 
@@ -1488,7 +1696,7 @@ class FeatureFinder(Finder):
                 else:
                     matches2.append(m[0])
 
-            log.log(9, "Ratio test result is %i/%i", len(matches2), len(matches))
+            _logger.log(9, "Ratio test result is %i/%i", len(matches2), len(matches))
             return matches2
 
         def symmetry_test(nmatches, hmatches):
@@ -1500,6 +1708,7 @@ class FeatureFinder(Finder):
             match is not too large.
             """
             import cv2
+
             matches2 = []
             for nm in nmatches:
                 for hm in hmatches:
@@ -1509,7 +1718,7 @@ class FeatureFinder(Finder):
                         matches2.append(m)
                         break
 
-            log.log(9, "Symmetry test result is %i/%i", len(matches2), len(matches))
+            _logger.log(9, "Symmetry test result is %i/%i", len(matches2), len(matches))
             return matches2
 
         # include only methods tested for compatibility
@@ -1517,17 +1726,23 @@ class FeatureFinder(Finder):
             # build matcher and match feature vectors
             self.synchronize_backend(category="fmatch")
         else:
-            raise UnsupportedBackendError("Feature detector %s is not among the supported"
-                                          "ones %s" % (match, self.algorithms[self.categories["fmatch"]]))
+            raise UnsupportedBackendError(
+                "Feature detector %s is not among the supported"
+                "ones %s" % (match, self.algorithms[self.categories["fmatch"]])
+            )
 
         # find and filter matches through tests
         if match == "in-house-region":
-            matches = self.matcher.regionMatch(ndescriptors, hdescriptors,
-                                               nkeypoints, hkeypoints,
-                                               self.params["fmatch"]["refinements"].value,
-                                               self.params["fmatch"]["recalc_interval"].value,
-                                               self.params["fmatch"]["variants_k"].value,
-                                               self.params["fmatch"]["variants_ratio"].value)
+            matches = self.matcher.regionMatch(
+                ndescriptors,
+                hdescriptors,
+                nkeypoints,
+                hkeypoints,
+                self.params["fmatch"]["refinements"].value,
+                self.params["fmatch"]["recalc_interval"].value,
+                self.params["fmatch"]["variants_k"].value,
+                self.params["fmatch"]["variants_ratio"].value,
+            )
         else:
             if self.params["fmatch"]["ratioTest"].value:
                 matches = self.matcher.knnMatch(ndescriptors, hdescriptors, 2)
@@ -1549,7 +1764,7 @@ class FeatureFinder(Finder):
         match_hkeypoints = []
         matches = sorted(matches, key=lambda x: x.distance)
         for match in matches:
-            log.log(9, match.distance)
+            _logger.log(9, match.distance)
             match_nkeypoints.append(nkeypoints[match.queryIdx])
             match_hkeypoints.append(hkeypoints[match.trainIdx])
 
@@ -1561,8 +1776,7 @@ class FeatureFinder(Finder):
         # update the current achieved similarity if matching similarity is used:
         # won't be updated anymore if self.params["feature"]["similarityRatio"].value == 0
         self.imglog.similarities[-1] = match_similarity
-        log.log(9, "%s\\%s -> %f", len(match_nkeypoints),
-                len(nkeypoints), match_similarity)
+        _logger.log(9, "%s\\%s -> %f", len(match_nkeypoints), len(nkeypoints), match_similarity)
 
         return (match_nkeypoints, match_hkeypoints)
 
@@ -1591,24 +1805,30 @@ class FeatureFinder(Finder):
 
         import cv2
         import numpy
+
         # homography and fundamental matrix as options - homography is considered only
         # for rotation but currently gives better results than the fundamental matrix
         if self.params["feature"]["projectionMethod"].value == 0:
-            H, mask = cv2.findHomography(numpy.array([kp.pt for kp in mnkp]),
-                                         numpy.array([kp.pt for kp in mhkp]), cv2.RANSAC,
-                                         self.params["feature"]["ransacReprojThreshold"].value)
+            H, mask = cv2.findHomography(
+                numpy.array([kp.pt for kp in mnkp]),
+                numpy.array([kp.pt for kp in mhkp]),
+                cv2.RANSAC,
+                self.params["feature"]["ransacReprojThreshold"].value,
+            )
         elif self.params["feature"]["projectionMethod"].value == 1:
-            H, mask = cv2.findFundamentalMat(numpy.array([kp.pt for kp in mnkp]),
-                                             numpy.array([kp.pt for kp in mhkp]),
-                                             method=cv2.RANSAC, param1=10.0,
-                                             param2=0.9)
+            H, mask = cv2.findFundamentalMat(
+                numpy.array([kp.pt for kp in mnkp]),
+                numpy.array([kp.pt for kp in mhkp]),
+                method=cv2.RANSAC,
+                param1=10.0,
+                param2=0.9,
+            )
         else:
-            raise ValueError("Unsupported projection method - use 0 for homography and "
-                             "1 for fundamentlal matrix")
+            raise ValueError("Unsupported projection method - use 0 for homography and " "1 for fundamentlal matrix")
 
         # measure total used features for the projected focus point
         if H is None or mask is None:
-            log.log(30, "Homography error occurred during feature matching")
+            _logger.log(30, "Homography error occurred during feature matching")
             self.imglog.similarities[-1] = 0.0
             return []
         true_matches = []
@@ -1624,7 +1844,7 @@ class FeatureFinder(Finder):
         for location in locations_in_needle:
             (ox, oy) = (location[0], location[1])
             orig_center_wrapped = numpy.array([[[ox, oy]]], dtype=numpy.float32)
-            log.log(9, "%s %s", orig_center_wrapped.shape, H.shape)
+            _logger.log(9, "%s %s", orig_center_wrapped.shape, H.shape)
             match_center_wrapped = cv2.perspectiveTransform(orig_center_wrapped, H)
             (mx, my) = (match_center_wrapped[0][0][0], match_center_wrapped[0][0][1])
             projected.append((int(mx), int(my)))
@@ -1633,7 +1853,7 @@ class FeatureFinder(Finder):
         if self.params["feature"]["similarityRatio"].value == 1:
             # override the match similarity if projectin-based similarity is preferred
             self.imglog.similarities[-1] = ransac_similarity
-        log.log(9, "%s\\%s -> %f", len(true_matches), len(mnkp), ransac_similarity)
+        _logger.log(9, "%s\\%s -> %f", len(true_matches), len(mnkp), ransac_similarity)
         self.imglog.locations.extend(projected)
 
         return projected
@@ -1662,11 +1882,16 @@ class FeatureFinder(Finder):
             if self.imglog.logging_level > 20 and stage == "project":
                 continue
             if stage == "":
-                name = "imglog%s-3hotmap-%s.png" % (self.imglog.printable_step,
-                                                    self.imglog.similarities[-1])
+                name = "imglog%s-3hotmap-%s.png" % (
+                    self.imglog.printable_step,
+                    self.imglog.similarities[-1],
+                )
             else:
-                name = "imglog%s-3hotmap-%s%s.png" % (self.imglog.printable_step,
-                                                      i + 1, stage)
+                name = "imglog%s-3hotmap-%s%s.png" % (
+                    self.imglog.printable_step,
+                    i + 1,
+                    stage,
+                )
             self.imglog.dump_hotmap(name, self.imglog.hotmaps[i])
 
         self.imglog.clear()
@@ -1676,6 +1901,7 @@ class FeatureFinder(Finder):
         if lvl < self.imglog.logging_level:
             return
         import cv2
+
         for loc in locations:
             x, y = loc
             cv2.circle(hotmap, (int(x), int(y)), radius, (r, g, b))
@@ -1748,6 +1974,7 @@ class CascadeFinder(Finder):
 
         import cv2
         import numpy
+
         needle_cascade = cv2.CascadeClassifier(needle.data_file)
         if needle_cascade.empty():
             raise Exception("Could not load the cascade classifier properly")
@@ -1755,15 +1982,22 @@ class CascadeFinder(Finder):
         canvas = numpy.array(haystack.pil_image)
 
         from .match import Match
+
         matches = []
-        rects = needle_cascade.detectMultiScale(gray_haystack,
-                                                self.params["cascade"]["scaleFactor"].value,
-                                                self.params["cascade"]["minNeighbors"].value,
-                                                0,
-                                                (self.params["cascade"]["minWidth"].value,
-                                                 self.params["cascade"]["minHeight"].value),
-                                                (self.params["cascade"]["maxWidth"].value,
-                                                 self.params["cascade"]["maxHeight"].value))
+        rects = needle_cascade.detectMultiScale(
+            gray_haystack,
+            self.params["cascade"]["scaleFactor"].value,
+            self.params["cascade"]["minNeighbors"].value,
+            0,
+            (
+                self.params["cascade"]["minWidth"].value,
+                self.params["cascade"]["minHeight"].value,
+            ),
+            (
+                self.params["cascade"]["maxWidth"].value,
+                self.params["cascade"]["maxHeight"].value,
+            ),
+        )
         for (x, y, w, h) in rects:
             cv2.rectangle(canvas, (x, y), (x + w, y + h), (0, 0, 0), 2)
             cv2.rectangle(canvas, (x, y), (x + w, y + h), (255, 0, 0), 1)
@@ -1803,7 +2037,13 @@ class TextFinder(ContourFinder):
         self.categories["threshold3"] = "threshold_filters3"
         self.algorithms["text_matchers"] = ("mixed",)
         self.algorithms["text_detectors"] = ("east", "erstat", "contours", "components")
-        self.algorithms["text_recognizers"] = ("pytesseract", "tesserocr", "tesseract", "hmm", "beamSearch")
+        self.algorithms["text_recognizers"] = (
+            "pytesseract",
+            "tesserocr",
+            "tesseract",
+            "hmm",
+            "beamSearch",
+        )
         self.algorithms["threshold_filters2"] = tuple(self.algorithms["threshold_filters"])
         self.algorithms["threshold_filters3"] = tuple(self.algorithms["threshold_filters"])
 
@@ -1826,7 +2066,15 @@ class TextFinder(ContourFinder):
 
         See base method for details.
         """
-        if category not in ["text", "tdetect", "ocr", "contour", "threshold", "threshold2", "threshold3"]:
+        if category not in [
+            "text",
+            "tdetect",
+            "ocr",
+            "contour",
+            "threshold",
+            "threshold2",
+            "threshold3",
+        ]:
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         elif category in ["contour", "threshold"]:
             ContourFinder.configure_backend(self, backend, category, reset)
@@ -1851,10 +2099,12 @@ class TextFinder(ContourFinder):
         elif category == "ocr" and backend is None:
             backend = GlobalConfig.text_ocr_backend
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
-        log.log(9, "Setting backend for %s to %s", category, backend)
+        _logger.log(9, "Setting backend for %s to %s", category, backend)
         self.params[category] = {}
         self.params[category]["backend"] = backend
 
@@ -1896,8 +2146,9 @@ class TextFinder(ContourFinder):
             if backend in ["tesseract", "tesserocr", "pytesseract"]:
                 # eng, deu, etc. (ISO 639-3)
                 self.params[category]["language"] = CVParameter("eng")
-                self.params[category]["char_whitelist"] = CVParameter(" 0123456789abcdefghijklmnopqrst"
-                                                                      "uvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                self.params[category]["char_whitelist"] = CVParameter(
+                    " 0123456789abcdefghijklmnopqrst" "uvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                )
                 # 0 original tesseract only, 1 neural nets LSTM only, 2 both, 3 anything available
                 self.params[category]["oem"] = CVParameter(3, 0, 3, enumerated=True)
                 # 13 different page segmentation modes - see Tesseract API
@@ -1950,9 +2201,15 @@ class TextFinder(ContourFinder):
         """
         self.__configure_backend(backend, category, reset)
 
-    def __configure(self, text_detector=None, text_recognizer=None,
-                    threshold_filter=None, threshold_filter2=None,
-                    threshold_filter3=None, reset=True):
+    def __configure(
+        self,
+        text_detector=None,
+        text_recognizer=None,
+        threshold_filter=None,
+        threshold_filter2=None,
+        threshold_filter3=None,
+        reset=True,
+    ):
         self.__configure_backend(category="text", reset=reset)
         self.__configure_backend(text_detector, "tdetect")
         self.__configure_backend(text_recognizer, "ocr")
@@ -1961,9 +2218,16 @@ class TextFinder(ContourFinder):
         self.__configure_backend(threshold_filter2, "threshold2")
         self.__configure_backend(threshold_filter3, "threshold3")
 
-    def configure(self, text_detector=None, text_recognizer=None,
-                  threshold_filter=None, threshold_filter2=None,
-                  threshold_filter3=None, reset=True, **kwargs):
+    def configure(
+        self,
+        text_detector=None,
+        text_recognizer=None,
+        threshold_filter=None,
+        threshold_filter2=None,
+        threshold_filter3=None,
+        reset=True,
+        **kwargs,
+    ):
         """
         Custom implementation of the base method.
 
@@ -1978,12 +2242,25 @@ class TextFinder(ContourFinder):
         :param threshold_filter3: additional threshold filter for distance transformation
         :type threshold_filter3: str or None
         """
-        self.__configure(text_detector, text_recognizer,
-                         threshold_filter, threshold_filter2, threshold_filter3,
-                         reset)
+        self.__configure(
+            text_detector,
+            text_recognizer,
+            threshold_filter,
+            threshold_filter2,
+            threshold_filter3,
+            reset,
+        )
 
     def __synchronize_backend(self, backend=None, category="text", reset=False):
-        if category not in ["text", "tdetect", "ocr", "contour", "threshold", "threshold2", "threshold3"]:
+        if category not in [
+            "text",
+            "tdetect",
+            "ocr",
+            "contour",
+            "threshold",
+            "threshold2",
+            "threshold3",
+        ]:
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
             Finder.synchronize_backend(self, "text", reset=True)
@@ -1992,23 +2269,26 @@ class TextFinder(ContourFinder):
         backend = self.params[category]["backend"]
 
         import cv2
+
         datapath = self.params["text"]["datapath"].value
         if category == "text" or category in ["contour", "threshold", "threshold2"]:
             # nothing to sync
             return
 
         elif category == "tdetect" and backend == "east":
-            self.east_net = cv2.dnn.readNet(os.path.join(datapath, 'frozen_east_text_detection.pb'))
+            self.east_net = cv2.dnn.readNet(os.path.join(datapath, "frozen_east_text_detection.pb"))
         elif category == "tdetect" and backend == "erstat":
-            self.erc1 = cv2.text.loadClassifierNM1(os.path.join(datapath, 'trained_classifierNM1.xml'))
-            self.erf1 = cv2.text.createERFilterNM1(self.erc1,
-                                                   self.params["tdetect"]["thresholdDelta"].value,
-                                                   self.params["tdetect"]["minArea"].value,
-                                                   self.params["tdetect"]["maxArea"].value,
-                                                   self.params["tdetect"]["minProbability"].value,
-                                                   self.params["tdetect"]["nonMaxSuppression"].value,
-                                                   self.params["tdetect"]["minProbabilityDiff"].value)
-            self.erc2 = cv2.text.loadClassifierNM2(os.path.join(datapath, 'trained_classifierNM2.xml'))
+            self.erc1 = cv2.text.loadClassifierNM1(os.path.join(datapath, "trained_classifierNM1.xml"))
+            self.erf1 = cv2.text.createERFilterNM1(
+                self.erc1,
+                self.params["tdetect"]["thresholdDelta"].value,
+                self.params["tdetect"]["minArea"].value,
+                self.params["tdetect"]["maxArea"].value,
+                self.params["tdetect"]["minProbability"].value,
+                self.params["tdetect"]["nonMaxSuppression"].value,
+                self.params["tdetect"]["minProbabilityDiff"].value,
+            )
+            self.erc2 = cv2.text.loadClassifierNM2(os.path.join(datapath, "trained_classifierNM2.xml"))
             self.erf2 = cv2.text.createERFilterNM2(self.erc2, self.params["tdetect"]["minProbability2"].value)
         elif category == "tdetect":
             # nothing to sync
@@ -2021,42 +2301,55 @@ class TextFinder(ContourFinder):
 
             if backend == "pytesseract":
                 import pytesseract
+
                 self.ocr = pytesseract
                 self.ocr_config = r"--tessdata-dir %s --oem %s --psm %s "
-                self.ocr_config %= (tessdata_path,
-                                    self.params["ocr"]["oem"].value,
-                                    self.params["ocr"]["psmode"].value)
+                self.ocr_config %= (
+                    tessdata_path,
+                    self.params["ocr"]["oem"].value,
+                    self.params["ocr"]["psmode"].value,
+                )
                 self.ocr_config += r"-c tessedit_char_whitelist='%s' %s"
-                self.ocr_config %= (self.params["ocr"]["char_whitelist"].value,
-                                    self.params["ocr"]["extra_configs"].value)
+                self.ocr_config %= (
+                    self.params["ocr"]["char_whitelist"].value,
+                    self.params["ocr"]["extra_configs"].value,
+                )
             elif backend == "tesserocr":
                 from tesserocr import PyTessBaseAPI
-                self.ocr = PyTessBaseAPI(path=tessdata_path,
-                                         lang=self.params["ocr"]["language"].value,
-                                         oem=self.params["ocr"]["oem"].value,
-                                         psm=self.params["ocr"]["psmode"].value)
-                self.ocr.SetVariable("tessedit_char_whitelist", self.params["ocr"]["char_whitelist"].value)
+
+                self.ocr = PyTessBaseAPI(
+                    path=tessdata_path,
+                    lang=self.params["ocr"]["language"].value,
+                    oem=self.params["ocr"]["oem"].value,
+                    psm=self.params["ocr"]["psmode"].value,
+                )
+                self.ocr.SetVariable(
+                    "tessedit_char_whitelist",
+                    self.params["ocr"]["char_whitelist"].value,
+                )
             elif backend == "tesseract":
-                self.ocr = cv2.text.OCRTesseract_create(tessdata_path,
-                                                        language=self.params["ocr"]["language"].value,
-                                                        char_whitelist=self.params["ocr"]["char_whitelist"].value,
-                                                        oem=self.params["ocr"]["oem"].value,
-                                                        psmode=self.params["ocr"]["psmode"].value)
+                self.ocr = cv2.text.OCRTesseract_create(
+                    tessdata_path,
+                    language=self.params["ocr"]["language"].value,
+                    char_whitelist=self.params["ocr"]["char_whitelist"].value,
+                    oem=self.params["ocr"]["oem"].value,
+                    psmode=self.params["ocr"]["psmode"].value,
+                )
             elif backend in ["hmm", "beamSearch"]:
 
                 import numpy
+
                 # vocabulary is strictly related with the XML data so remains hardcoded here
                 vocabulary = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-                with open(os.path.join(datapath, 'OCRHMM_transitions_table.xml')) as f:
+                with open(os.path.join(datapath, "OCRHMM_transitions_table.xml")) as f:
                     transition_p_xml = f.read()
-                    transition_p_data = re.search("<data>(.*)</data>",
-                                                  transition_p_xml.replace("\n", " "))
+                    transition_p_data = re.search("<data>(.*)</data>", transition_p_xml.replace("\n", " "))
                     assert transition_p_data is not None, "Corrupted transition probability data"
-                transition_p = numpy.fromstring(transition_p_data.group(1).strip(), sep=' ').reshape(62, 62)
+                transition_p = numpy.fromstring(transition_p_data.group(1).strip(), sep=" ").reshape(62, 62)
                 emission_p = numpy.eye(62, dtype=numpy.float64)
 
                 if backend == "hmm":
-                    classifier_data = os.path.join(datapath, 'OCRHMM_knn_model_data.xml.gz')
+                    classifier_data = os.path.join(datapath, "OCRHMM_knn_model_data.xml.gz")
                     if self.params["ocr"]["classifier"].value == 1:
                         classifier = cv2.text.loadOCRHMMClassifierNM(classifier_data)
                     elif self.params["ocr"]["classifier"].value == 2:
@@ -2065,7 +2358,7 @@ class TextFinder(ContourFinder):
                         raise ValueError("Invalid classifier selected for OCR - must be NM or CNN")
                     self.ocr = cv2.text.OCRHMMDecoder_create(classifier, vocabulary, transition_p, emission_p)
                 else:
-                    classifier_data = os.path.join(datapath, 'OCRBeamSearch_CNN_model_data.xml.gz')
+                    classifier_data = os.path.join(datapath, "OCRBeamSearch_CNN_model_data.xml.gz")
                     classifier = cv2.text.loadOCRBeamSearchClassifierCNN(classifier_data)
                     self.ocr = cv2.text.OCRBeamSearchDecoder_create(classifier, vocabulary, transition_p, emission_p)
             else:
@@ -2079,9 +2372,15 @@ class TextFinder(ContourFinder):
         """
         self.__synchronize_backend(backend, category, reset)
 
-    def __synchronize(self, text_detector=None, text_recognizer=None,
-                      threshold_filter=None, threshold_filter2=None,
-                      threshold_filter3=None, reset=True):
+    def __synchronize(
+        self,
+        text_detector=None,
+        text_recognizer=None,
+        threshold_filter=None,
+        threshold_filter2=None,
+        threshold_filter3=None,
+        reset=True,
+    ):
         self.__synchronize_backend(category="text", reset=reset)
         self.__synchronize_backend(text_detector, "tdetect")
         self.__synchronize_backend(text_recognizer, "ocr")
@@ -2090,9 +2389,15 @@ class TextFinder(ContourFinder):
         self.__synchronize_backend(threshold_filter2, "threshold2")
         self.__synchronize_backend(threshold_filter3, "threshold3")
 
-    def synchronize(self, text_detector=None, text_recognizer=None,
-                    threshold_filter=None, threshold_filter2=None,
-                    threshold_filter3=None, reset=True):
+    def synchronize(
+        self,
+        text_detector=None,
+        text_recognizer=None,
+        threshold_filter=None,
+        threshold_filter2=None,
+        threshold_filter3=None,
+        reset=True,
+    ):
         """
         Custom implementation of the base method.
 
@@ -2107,9 +2412,14 @@ class TextFinder(ContourFinder):
         :param threshold_filter3: additional threshold filter for distance transformation
         :type threshold_filter3: str or None
         """
-        self.__synchronize(text_detector, text_recognizer,
-                           threshold_filter, threshold_filter2, threshold_filter3,
-                           reset)
+        self.__synchronize(
+            text_detector,
+            text_recognizer,
+            threshold_filter,
+            threshold_filter2,
+            threshold_filter3,
+            reset,
+        )
 
     def find(self, needle, haystack):
         """
@@ -2128,13 +2438,14 @@ class TextFinder(ContourFinder):
 
         import cv2
         import numpy
+
         text_needle = needle.value
         img_haystack = numpy.array(haystack.pil_image)
         final_hotmap = numpy.array(haystack.pil_image)
 
         # detect characters and group them into detected text
         backend = self.params["tdetect"]["backend"]
-        log.debug("Detecting text with %s", backend)
+        _logger.debug("Detecting text with %s", backend)
         if backend == "east":
             text_regions = self._detect_text_east(haystack)
         elif backend == "erstat":
@@ -2148,8 +2459,9 @@ class TextFinder(ContourFinder):
 
         # perform optical character recognition on the final regions
         backend = self.params["ocr"]["backend"]
-        log.debug("Recognizing text with %s", backend)
+        _logger.debug("Recognizing text with %s", backend)
         from .match import Match
+
         matches = []
 
         def binarize_step(threshold, text_img):
@@ -2169,22 +2481,29 @@ class TextFinder(ContourFinder):
             # main OCR preprocessing stage
             border = self.params["ocr"]["border_size"].value
             text_img = img_haystack[
-                       max(text_box[1] - border, 0):min(text_box[1] + text_box[3] + border, img_haystack.shape[0]),
-                       max(text_box[0] - border, 0):min(text_box[0] + text_box[2] + border, img_haystack.shape[1])]
+                max(text_box[1] - border, 0) : min(text_box[1] + text_box[3] + border, img_haystack.shape[0]),
+                max(text_box[0] - border, 0) : min(text_box[0] + text_box[2] + border, img_haystack.shape[1]),
+            ]
             factor = self.params["ocr"]["zoom_factor"].value
-            log.debug("Zooming x%i candidate for improved OCR processing", factor)
+            _logger.debug("Zooming x%i candidate for improved OCR processing", factor)
             text_img = cv2.resize(text_img, None, fx=factor, fy=factor)
             text_img = binarize_step("threshold2", text_img)
             if self.params["ocr"]["distance_transform"].value:
-                text_img = cv2.distanceTransform(text_img,
-                                                 self.params["ocr"]["dt_distance_type"].value,
-                                                 self.params["ocr"]["dt_mask_size"].value)
-                text_img = cv2.cvtColor(numpy.asarray(text_img, dtype='uint8'), cv2.COLOR_GRAY2RGB)
+                text_img = cv2.distanceTransform(
+                    text_img,
+                    self.params["ocr"]["dt_distance_type"].value,
+                    self.params["ocr"]["dt_mask_size"].value,
+                )
+                text_img = cv2.cvtColor(numpy.asarray(text_img, dtype="uint8"), cv2.COLOR_GRAY2RGB)
                 text_img = binarize_step("threshold3", text_img)
             if self.params["ocr"]["erode_dilate"].value < 3:
-                element = cv2.getStructuringElement(self.params["ocr"]["ed_kernel_type"].value,
-                                                    (self.params["ocr"]["ed_kernel_width"].value,
-                                                     self.params["ocr"]["ed_kernel_height"].value))
+                element = cv2.getStructuringElement(
+                    self.params["ocr"]["ed_kernel_type"].value,
+                    (
+                        self.params["ocr"]["ed_kernel_width"].value,
+                        self.params["ocr"]["ed_kernel_height"].value,
+                    ),
+                )
                 if self.params["ocr"]["erode_dilate"].value in [0, 2]:
                     text_img = cv2.erode(text_img, element)
                 if self.params["ocr"]["erode_dilate"].value in [1, 2]:
@@ -2202,9 +2521,11 @@ class TextFinder(ContourFinder):
             # redirection of tesseract's streams can only be done on the file descriptor level
             # sys.stdout = open(os.devnull, 'w')
             if backend == "pytesseract":
-                output = self.ocr.image_to_string(text_img,
-                                                  lang=self.params["ocr"]["language"].value,
-                                                  config=self.ocr_config)
+                output = self.ocr.image_to_string(
+                    text_img,
+                    lang=self.params["ocr"]["language"].value,
+                    config=self.ocr_config,
+                )
                 logging.debug("Running pytesseract with extra command line %s", self.ocr_config)
             elif backend == "tesserocr":
                 self.ocr.SetImage(PIL.Image.fromarray(text_img))
@@ -2212,16 +2533,19 @@ class TextFinder(ContourFinder):
             else:
                 stdout_fd = sys.stdout.fileno() if hasattr(sys.stdout, "fileno") else 1
                 stderr_fd = sys.stderr.fileno() if hasattr(sys.stderr, "fileno") else 2
-                null_fo = open(os.devnull, 'wb')
-                with os.fdopen(os.dup(stdout_fd), 'wb') as cpout_fo:
-                    with os.fdopen(os.dup(stderr_fd), 'wb') as cperr_fo:
+                null_fo = open(os.devnull, "wb")
+                with os.fdopen(os.dup(stdout_fd), "wb") as cpout_fo:
+                    with os.fdopen(os.dup(stderr_fd), "wb") as cperr_fo:
                         sys.stdout.flush()
                         sys.stderr.flush()
                         os.dup2(null_fo.fileno(), stdout_fd)
                         os.dup2(null_fo.fileno(), stderr_fd)
-                        output = self.ocr.run(text_img, text_img,
-                                              self.params["ocr"]["min_confidence"].value,
-                                              self.params["ocr"]["component_level"].value)
+                        output = self.ocr.run(
+                            text_img,
+                            text_img,
+                            self.params["ocr"]["min_confidence"].value,
+                            self.params["ocr"]["component_level"].value,
+                        )
                         sys.stdout.flush()
                         sys.stderr.flush()
                         os.dup2(cpout_fo.fileno(), stdout_fd)
@@ -2230,13 +2554,13 @@ class TextFinder(ContourFinder):
             if self.params["ocr"]["component_level"].value == 1:
                 # strip of the new line character which is never useful
                 output = output.rstrip()
-            log.debug("OCR output %s = '%s'", i + 1, output)
+            _logger.debug("OCR output %s = '%s'", i + 1, output)
 
             similarity = 1.0 - float(needle.distance_to(output)) / max(len(output), len(text_needle))
-            log.debug("Similarity = '%s'", similarity)
+            _logger.debug("Similarity = '%s'", similarity)
             self.imglog.similarities.append(similarity)
             if similarity >= self.params["find"]["similarity"].value:
-                log.debug("Text at (%s, %s) is acceptable", text_box[0], text_box[1])
+                _logger.debug("Text at (%s, %s) is acceptable", text_box[0], text_box[1])
                 self.imglog.locations.append((text_box[0], text_box[1]))
                 x, y, w, h = text_box
                 dx, dy = needle.center_offset.x, needle.center_offset.y
@@ -2254,6 +2578,7 @@ class TextFinder(ContourFinder):
         #:   https://www.pyimagesearch.com/2018/08/20/opencv-text-detection-east-text-detector/
         import cv2
         import numpy
+
         img = numpy.array(haystack.pil_image)
         char_canvas = cv2.cvtColor(numpy.array(haystack.pil_image), cv2.COLOR_RGB2GRAY)
         text_canvas = numpy.array(haystack.pil_image)
@@ -2261,8 +2586,10 @@ class TextFinder(ContourFinder):
         self.imglog.hotmaps.append(text_canvas)
 
         # resize the image to resolution compatible with the model
-        inp_width, inp_height = (self.params["tdetect"]["input_res_x"].value,
-                                 self.params["tdetect"]["input_res_y"].value)
+        inp_width, inp_height = (
+            self.params["tdetect"]["input_res_x"].value,
+            self.params["tdetect"]["input_res_y"].value,
+        )
         width_ratio = img.shape[1] / float(inp_width)
         height_ratio = img.shape[0] / float(inp_height)
         img = cv2.resize(img, (inp_width, inp_height))
@@ -2299,9 +2626,20 @@ class TextFinder(ContourFinder):
                 x1, y1 = x2 - w, y2 - h
 
                 rect = (int(x1), int(y1), int(w), int(h))
-                cv2.rectangle(char_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 0), 2)
-                cv2.rectangle(char_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (255, 255, 255),
-                              1)
+                cv2.rectangle(
+                    char_canvas,
+                    (rect[0], rect[1]),
+                    (rect[0] + rect[2], rect[1] + rect[3]),
+                    (0, 0, 0),
+                    2,
+                )
+                cv2.rectangle(
+                    char_canvas,
+                    (rect[0], rect[1]),
+                    (rect[0] + rect[2], rect[1] + rect[3]),
+                    (255, 255, 255),
+                    1,
+                )
                 rects.append(rect)
                 # TODO: needed for outsourced nonmaxima supression
                 # confidences.append(row_scores[x])
@@ -2324,16 +2662,32 @@ class TextFinder(ContourFinder):
             for r2pair in region_queue:
                 r2, _ = r2pair
                 # if the two regions intersect
-                if (r1[0] < r2[0] + r2[2] and r1[0] + r1[2] > r2[0]
-                        and r1[1] < r2[1] + r2[3] and r1[1] + r1[3] > r2[1]):
-                    r1 = [min(r1[0], r2[0]), min(r1[1], r2[1]), max(r1[2], r2[2]), max(r1[3], r2[3])]
+                if r1[0] < r2[0] + r2[2] and r1[0] + r1[2] > r2[0] and r1[1] < r2[1] + r2[3] and r1[1] + r1[3] > r2[1]:
+                    r1 = [
+                        min(r1[0], r2[0]),
+                        min(r1[1], r2[1]),
+                        max(r1[2], r2[2]),
+                        max(r1[3], r2[3]),
+                    ]
                     # second region will no longer be considered
                     r2pair[1] = False
             # first region is now merged with all intersecting regions
             text_regions.append(r1)
         for rect in text_regions:
-            cv2.rectangle(text_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 0), 2)
-            cv2.rectangle(text_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 255), 1)
+            cv2.rectangle(
+                text_canvas,
+                (rect[0], rect[1]),
+                (rect[0] + rect[2], rect[1] + rect[3]),
+                (0, 0, 0),
+                2,
+            )
+            cv2.rectangle(
+                text_canvas,
+                (rect[0], rect[1]),
+                (rect[0] + rect[2], rect[1] + rect[3]),
+                (0, 0, 255),
+                1,
+            )
 
         logging.debug("A total of %s final text regions found", len(text_regions))
         return text_regions
@@ -2341,6 +2695,7 @@ class TextFinder(ContourFinder):
     def _detect_text_erstat(self, haystack):
         import cv2
         import numpy
+
         img = numpy.array(haystack.pil_image)
         char_canvas = numpy.array(haystack.pil_image)
         text_canvas = numpy.array(haystack.pil_image)
@@ -2357,25 +2712,57 @@ class TextFinder(ContourFinder):
         char_regions = []
         text_regions = []
         # apply the default cascade classifier to each independent channel
-        log.debug("Extracting class specific extremal regions from %s channels", len(channels))
+        _logger.debug("Extracting class specific extremal regions from %s channels", len(channels))
         for i, channel in enumerate(channels):
 
             # one liner for "erf1.run(channel)" then "erf2.run(channel)"
             regions = cv2.text.detectRegions(channel, self.erf1, self.erf2)
-            logging.debug("A total of %s possible character regions found on channel %s", len(regions), i)
+            logging.debug(
+                "A total of %s possible character regions found on channel %s",
+                len(regions),
+                i,
+            )
             rects = [cv2.boundingRect(p.reshape(-1, 1, 2)) for p in regions]
             for rect in rects:
-                cv2.rectangle(char_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 0), 2)
-                cv2.rectangle(char_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 255), 1)
+                cv2.rectangle(
+                    char_canvas,
+                    (rect[0], rect[1]),
+                    (rect[0] + rect[2], rect[1] + rect[3]),
+                    (0, 0, 0),
+                    2,
+                )
+                cv2.rectangle(
+                    char_canvas,
+                    (rect[0], rect[1]),
+                    (rect[0] + rect[2], rect[1] + rect[3]),
+                    (0, 0, 255),
+                    1,
+                )
 
             if len(regions) == 0:
                 continue
 
             region_groups = cv2.text.erGrouping(img, channel, [r.tolist() for r in regions])
-            logging.debug("A total of %s possible text regions found on channel %s", len(region_groups), i)
+            logging.debug(
+                "A total of %s possible text regions found on channel %s",
+                len(region_groups),
+                i,
+            )
             for rect in region_groups:
-                cv2.rectangle(text_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 0), 2)
-                cv2.rectangle(text_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 255, 0), 1)
+                cv2.rectangle(
+                    text_canvas,
+                    (rect[0], rect[1]),
+                    (rect[0] + rect[2], rect[1] + rect[3]),
+                    (0, 0, 0),
+                    2,
+                )
+                cv2.rectangle(
+                    text_canvas,
+                    (rect[0], rect[1]),
+                    (rect[0] + rect[2], rect[1] + rect[3]),
+                    (0, 255, 0),
+                    1,
+                )
 
             char_regions.extend(regions)
             text_regions.extend(region_groups)
@@ -2393,9 +2780,13 @@ class TextFinder(ContourFinder):
             for r2pair in region_queue:
                 r2, _ = r2pair
                 # if the two regions intersect
-                if (r1[0] < r2[0] + r2[2] and r1[0] + r1[2] > r2[0]
-                        and r1[1] < r2[1] + r2[3] and r1[1] + r1[3] > r2[1]):
-                    r1 = [min(r1[0], r2[0]), min(r1[1], r2[1]), max(r1[2], r2[2]), max(r1[3], r2[3])]
+                if r1[0] < r2[0] + r2[2] and r1[0] + r1[2] > r2[0] and r1[1] < r2[1] + r2[3] and r1[1] + r1[3] > r2[1]:
+                    r1 = [
+                        min(r1[0], r2[0]),
+                        min(r1[1], r2[1]),
+                        max(r1[2], r2[2]),
+                        max(r1[3], r2[3]),
+                    ]
                     # second region will no longer be considered
                     r2pair[1] = False
             # first region is now merged with all intersecting regions
@@ -2405,6 +2796,7 @@ class TextFinder(ContourFinder):
     def _detect_text_contours(self, haystack):
         import cv2
         import numpy
+
         img = numpy.array(haystack.pil_image)
         char_canvas = numpy.array(haystack.pil_image)
         text_canvas = numpy.array(haystack.pil_image)
@@ -2419,16 +2811,25 @@ class TextFinder(ContourFinder):
         for hcontour in haystack_contours:
             x, y, w, h = cv2.boundingRect(hcontour)
             area, ratio = cv2.contourArea(hcontour), float(w) / h
-            if (area < self.params["contour"]["minArea"].value
-                    or area > self.params["tdetect"]["maxArea"].value
-                    or w < self.params["tdetect"]["minWidth"].value
-                    or w > self.params["tdetect"]["maxWidth"].value
-                    or h < self.params["tdetect"]["minHeight"].value
-                    or h > self.params["tdetect"]["maxHeight"].value
-                    or ratio < self.params["tdetect"]["minAspectRatio"].value
-                    or ratio > self.params["tdetect"]["maxAspectRatio"].value):
-                log.debug("Ignoring contour with area %sx%s>%s and aspect ratio %s/%s=%s",
-                          w, h, area, w, h, ratio)
+            if (
+                area < self.params["contour"]["minArea"].value
+                or area > self.params["tdetect"]["maxArea"].value
+                or w < self.params["tdetect"]["minWidth"].value
+                or w > self.params["tdetect"]["maxWidth"].value
+                or h < self.params["tdetect"]["minHeight"].value
+                or h > self.params["tdetect"]["maxHeight"].value
+                or ratio < self.params["tdetect"]["minAspectRatio"].value
+                or ratio > self.params["tdetect"]["maxAspectRatio"].value
+            ):
+                _logger.debug(
+                    "Ignoring contour with area %sx%s>%s and aspect ratio %s/%s=%s",
+                    w,
+                    h,
+                    area,
+                    w,
+                    h,
+                    ratio,
+                )
                 continue
             else:
                 cv2.rectangle(char_canvas, (x, y), (x + w, y + h), (0, 0, 0), 2)
@@ -2438,7 +2839,10 @@ class TextFinder(ContourFinder):
 
         # group characters into horizontally-correlated regions
         text_regions = []
-        dx, dy = self.params["tdetect"]["horizontalSpacing"].value, self.params["tdetect"]["verticalVariance"].value
+        dx, dy = (
+            self.params["tdetect"]["horizontalSpacing"].value,
+            self.params["tdetect"]["verticalVariance"].value,
+        )
         text_orientation = self.params["tdetect"]["orientation"].value
         min_chars_for_text = self.params["tdetect"]["minChars"].value
         for i, region1 in enumerate(char_regions):
@@ -2453,19 +2857,28 @@ class TextFinder(ContourFinder):
                 x1, y1, w1, h1 = region1
                 x2, y2, w2, h2 = region2
                 if text_orientation == 0:
-                    is_text = x2 - (x1 + w1) < dx and x1 - (x2 + w2) < dx and abs(y1 - y2) < dy and abs(
-                        h1 - h2) < 2 * dy
+                    is_text = (
+                        x2 - (x1 + w1) < dx and x1 - (x2 + w2) < dx and abs(y1 - y2) < dy and abs(h1 - h2) < 2 * dy
+                    )
                 elif text_orientation == 1:
-                    is_text = y2 - (y1 + h1) < dy and y1 - (y2 + h2) < dy and abs(x1 - x2) < dx and abs(
-                        w1 - w2) < 2 * dx
+                    is_text = (
+                        y2 - (y1 + h1) < dy and y1 - (y2 + h2) < dy and abs(x1 - x2) < dx and abs(w1 - w2) < 2 * dx
+                    )
                 if is_text:
-                    region1 = [min(x1, x2), min(y1, y2), max(x1 + w1, x2 + w2) - min(x1, x2),
-                               max(y1 + h1, y2 + h2) - min(y1, y2)]
+                    region1 = [
+                        min(x1, x2),
+                        min(y1, y2),
+                        max(x1 + w1, x2 + w2) - min(x1, x2),
+                        max(y1 + h1, y2 + h2) - min(y1, y2),
+                    ]
                     chars_for_text += 1
                     char_regions[j] = None
             if chars_for_text < min_chars_for_text:
-                log.debug("Ignoring text contour with %s<%s characters",
-                          chars_for_text, min_chars_for_text)
+                _logger.debug(
+                    "Ignoring text contour with %s<%s characters",
+                    chars_for_text,
+                    min_chars_for_text,
+                )
                 continue
             x, y, w, h = region1
             cv2.rectangle(text_canvas, (x, y), (x + w, y + h), (0, 0, 0), 2)
@@ -2478,6 +2891,7 @@ class TextFinder(ContourFinder):
     def _detect_text_components(self, haystack):
         import cv2
         import numpy
+
         img = numpy.array(haystack.pil_image)
         char_canvas = numpy.array(haystack.pil_image)
         text_canvas = numpy.array(haystack.pil_image)
@@ -2486,8 +2900,11 @@ class TextFinder(ContourFinder):
 
         connectivity = self.params["tdetect"]["connectivity"].value
         label_num, label_img, stats, centroids = cv2.connectedComponentsWithStats(img, connectivity, cv2.CV_32S)
-        logging.debug("Detected %s component labels with centroids: %s", label_num,
-                      ", ".join([str((int(c[0]), int(c[1]))) for c in centroids]))
+        logging.debug(
+            "Detected %s component labels with centroids: %s",
+            label_num,
+            ", ".join([str((int(c[0]), int(c[1]))) for c in centroids]),
+        )
         self.imglog.hotmaps.append(label_img * 255)
         for i in range(label_num):
             x, y = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP]
@@ -2497,8 +2914,20 @@ class TextFinder(ContourFinder):
                 continue
             else:
                 rect = [x, y, w, h]
-                cv2.rectangle(char_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 0), 2)
-                cv2.rectangle(char_canvas, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 0, 255), 1)
+                cv2.rectangle(
+                    char_canvas,
+                    (rect[0], rect[1]),
+                    (rect[0] + rect[2], rect[1] + rect[3]),
+                    (0, 0, 0),
+                    2,
+                )
+                cv2.rectangle(
+                    char_canvas,
+                    (rect[0], rect[1]),
+                    (rect[0] + rect[2], rect[1] + rect[3]),
+                    (0, 0, 255),
+                    1,
+                )
 
         # TODO: log here since not fully implemented
         self.imglog.hotmaps[-1] = cv2.normalize(label_img, label_img, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
@@ -2527,19 +2956,27 @@ class TextFinder(ContourFinder):
         elif len(self.imglog.hotmaps) == 0:
             raise MissingHotmapError("No matching was performed in order to be image logged")
 
-        self.imglog.dump_hotmap("imglog%s-3hotmap-1char.png" % self.imglog.printable_step,
-                                self.imglog.hotmaps[0])
-        self.imglog.dump_hotmap("imglog%s-3hotmap-2text.png" % self.imglog.printable_step,
-                                self.imglog.hotmaps[1])
+        self.imglog.dump_hotmap(
+            "imglog%s-3hotmap-1char.png" % self.imglog.printable_step,
+            self.imglog.hotmaps[0],
+        )
+        self.imglog.dump_hotmap(
+            "imglog%s-3hotmap-2text.png" % self.imglog.printable_step,
+            self.imglog.hotmaps[1],
+        )
 
         for i in range(2, len(self.imglog.hotmaps) - 1):
-            self.imglog.dump_hotmap("imglog%s-3hotmap-3ocr-%stext-%s.png" % (self.imglog.printable_step, i - 1,
-                                                                             self.imglog.similarities[i - 2]),
-                                    self.imglog.hotmaps[i])
+            self.imglog.dump_hotmap(
+                "imglog%s-3hotmap-3ocr-%stext-%s.png"
+                % (self.imglog.printable_step, i - 1, self.imglog.similarities[i - 2]),
+                self.imglog.hotmaps[i],
+            )
 
         similarity = max(self.imglog.similarities) if len(self.imglog.similarities) > 0 else 0.0
-        self.imglog.dump_hotmap("imglog%s-3hotmap-%s.png" % (self.imglog.printable_step, similarity),
-                                self.imglog.hotmaps[-1])
+        self.imglog.dump_hotmap(
+            "imglog%s-3hotmap-%s.png" % (self.imglog.printable_step, similarity),
+            self.imglog.hotmaps[-1],
+        )
 
         self.imglog.clear()
         ImageLogger.step += 1
@@ -2574,7 +3011,14 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
             FeatureFinder.synchronize(self, reset=False)
 
     def __configure_backend(self, backend=None, category="tempfeat", reset=False):
-        if category not in ["tempfeat", "template", "feature", "fdetect", "fextract", "fmatch"]:
+        if category not in [
+            "tempfeat",
+            "template",
+            "feature",
+            "fdetect",
+            "fextract",
+            "fmatch",
+        ]:
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         elif category in ["feature", "fdetect", "fextract", "fmatch"]:
             FeatureFinder.configure_backend(self, backend, category, reset)
@@ -2588,8 +3032,10 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
         if backend is None:
             backend = "mixed"
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
         self.params[category] = {}
         self.params[category]["backend"] = backend
@@ -2603,8 +3049,14 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
         """
         self.__configure_backend(backend, category, reset)
 
-    def __configure(self, template_match=None, feature_detect=None,
-                    feature_extract=None, feature_match=None, reset=True):
+    def __configure(
+        self,
+        template_match=None,
+        feature_detect=None,
+        feature_extract=None,
+        feature_match=None,
+        reset=True,
+    ):
         self.__configure_backend(category="tempfeat", reset=reset)
         self.__configure_backend(template_match, "template")
         self.__configure_backend(category="feature")
@@ -2612,9 +3064,9 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
         self.__configure_backend(feature_extract, "fextract")
         self.__configure_backend(feature_match, "fmatch")
 
-    def configure(self, template_match=None, feature_detect=None,
-                  feature_extract=None, feature_match=None,
-                  reset=True, **kwargs):
+    def configure(
+        self, template_match=None, feature_detect=None, feature_extract=None, feature_match=None, reset=True, **kwargs
+    ):
         """
         Custom implementation of the base methods.
 
@@ -2622,19 +3074,20 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
         """
         self.__configure(template_match, feature_detect, feature_extract, feature_match, reset)
 
-    def synchronize(self, feature_detect=None, feature_extract=None,
-                    feature_match=None, reset=True):
+    def synchronize(self, feature_detect=None, feature_extract=None, feature_match=None, reset=True):
         """
         Custom implementation of the base method.
 
         See base method for details.
         """
         Finder.synchronize_backend(self, "tempfeat", reset=reset)
-        FeatureFinder.synchronize(self,
-                                  feature_detect=feature_detect,
-                                  feature_extract=feature_extract,
-                                  feature_match=feature_match,
-                                  reset=False)
+        FeatureFinder.synchronize(
+            self,
+            feature_detect=feature_detect,
+            feature_extract=feature_extract,
+            feature_match=feature_match,
+            reset=False,
+        )
 
     def find(self, needle, haystack):
         """
@@ -2651,9 +3104,11 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
         # use a different lower similarity for the template matching
         template_similarity = self.params["tempfeat"]["front_similarity"].value
         feature_similarity = self.params["find"]["similarity"].value
-        log.debug("Using tempfeat matching with template similarity %s "
-                  "and feature similarity %s", template_similarity,
-                  feature_similarity)
+        _logger.debug(
+            "Using tempfeat matching with template similarity %s " "and feature similarity %s",
+            template_similarity,
+            feature_similarity,
+        )
 
         # class-specific dependencies
         import cv2
@@ -2678,8 +3133,12 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
             down = min(haystack.height, up + needle.height)
             left = upleft.x
             right = min(haystack.width, left + needle.width)
-            log.log(9, "Maximum up-down is %s and left-right is %s",
-                    (up, down), (left, right))
+            _logger.log(
+                9,
+                "Maximum up-down is %s and left-right is %s",
+                (up, down),
+                (left, right),
+            )
 
             haystack_region = hgray[up:down, left:right]
             haystack_region = haystack_region.copy()
@@ -2693,19 +3152,28 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
 
             res = self._project_features(frame_points, ngray, haystack_region, feature_similarity)
             # if the feature matching succeeded or is worse than satisfactory template matching
-            if res is not None or (self.imglog.similarities[-1] > 0.0
-                                   and self.imglog.similarities[-1] < self.imglog.similarities[i]
-                                   and self.imglog.similarities[i] > feature_similarity):
+            if res is not None or (
+                self.imglog.similarities[-1] > 0.0
+                and self.imglog.similarities[-1] < self.imglog.similarities[i]
+                and self.imglog.similarities[i] > feature_similarity
+            ):
                 # take the template matching location rather than the feature one
                 # for stability (they should ultimately be the same)
-                log.debug("Using template result %s instead of the worse feature result %s",
-                          self.imglog.similarities[i], self.imglog.similarities[-1])
+                _logger.debug(
+                    "Using template result %s instead of the worse feature result %s",
+                    self.imglog.similarities[i],
+                    self.imglog.similarities[-1],
+                )
                 location = (left, up)
                 self.imglog.locations[-1] = location
 
-                feature_maxima.append([self.imglog.hotmaps[-1],
-                                       self.imglog.similarities[-1],
-                                       self.imglog.locations[-1]])
+                feature_maxima.append(
+                    [
+                        self.imglog.hotmaps[-1],
+                        self.imglog.similarities[-1],
+                        self.imglog.locations[-1],
+                    ]
+                )
                 # stitch back for a better final image logging
                 final_hotmap[up:down, left:right] = hotmap_region
 
@@ -2715,7 +3183,7 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
 
         # if at least one match is feature poor, we cannot rely on feature matching
         if is_feature_poor:
-            log.warn("Feature poor needle detected, falling back to template matching")
+            _logger.warn("Feature poor needle detected, falling back to template matching")
             # NOTE: this has knowledge of the internal workings of the _template_find_all
             # template matching and more specifically that it orders the matches starting
             # with the best (this is ok, since this is also internal method)
@@ -2725,15 +3193,21 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
             for i, _ in enumerate(template_maxima):
                 # test the template match also against the actual required similarity
                 if self.imglog.similarities[i] >= feature_similarity:
-                    feature_maxima.append([self.imglog.hotmaps[i],
-                                           self.imglog.similarities[i],
-                                           self.imglog.locations[i]])
+                    feature_maxima.append(
+                        [
+                            self.imglog.hotmaps[i],
+                            self.imglog.similarities[i],
+                            self.imglog.locations[i],
+                        ]
+                    )
 
         # release the accumulated logging from subroutines
         ImageLogger.accumulate_logging = False
         if len(feature_maxima) == 0:
-            log.debug("No acceptable match with the given feature similarity %s",
-                      feature_similarity)
+            _logger.debug(
+                "No acceptable match with the given feature similarity %s",
+                feature_similarity,
+            )
             if len(self.imglog.similarities) > 1:
                 # NOTE: handle cases when the matching failed at the feature stage, i.e. dump
                 # a hotmap for debugging also in this case
@@ -2748,14 +3222,27 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
 
         matches = []
         from .match import Match
+
         maxima = sorted(feature_maxima, key=lambda x: x[1], reverse=True)
         for maximum in maxima:
             similarity = maximum[1]
             x, y = maximum[2]
             w, h = needle.width, needle.height
             dx, dy = needle.center_offset.x, needle.center_offset.y
-            cv2.rectangle(final_hotmap, (x, y), (x + needle.width, y + needle.height), (0, 0, 0), 2)
-            cv2.rectangle(final_hotmap, (x, y), (x + needle.width, y + needle.height), (0, 0, 255), 1)
+            cv2.rectangle(
+                final_hotmap,
+                (x, y),
+                (x + needle.width, y + needle.height),
+                (0, 0, 0),
+                2,
+            )
+            cv2.rectangle(
+                final_hotmap,
+                (x, y),
+                (x + needle.width, y + needle.height),
+                (0, 0, 255),
+                1,
+            )
             matches.append(Match(x, y, w, h, dx, dy, similarity))
         self.imglog.hotmaps.append(final_hotmap)
         # log one best match for final hotmap filename
@@ -2788,19 +3275,27 @@ class TemplateFeatureFinder(TemplateFinder, FeatureFinder):
         # to make sure the winner is the first alphabetically
         candidate_num = int(len(self.imglog.similarities) / 2)
         for i in range(candidate_num):
-            name = "imglog%s-3hotmap-%stemplate-%s.png" % (self.imglog.printable_step,
-                                                           i + 1, self.imglog.similarities[i])
+            name = "imglog%s-3hotmap-%stemplate-%s.png" % (
+                self.imglog.printable_step,
+                i + 1,
+                self.imglog.similarities[i],
+            )
             self.imglog.dump_hotmap(name, self.imglog.hotmaps[i])
             ii = candidate_num + i
             hii = candidate_num + i * 4 + 3
             # self.imglog.log_locations(30, [self.imglog.locations[ii]], self.imglog.hotmaps[hii], 4, 255, 0, 0)
-            name = "imglog%s-3hotmap-%sfeature-%s.png" % (self.imglog.printable_step,
-                                                          i + 1, self.imglog.similarities[ii])
+            name = "imglog%s-3hotmap-%sfeature-%s.png" % (
+                self.imglog.printable_step,
+                i + 1,
+                self.imglog.similarities[ii],
+            )
             self.imglog.dump_hotmap(name, self.imglog.hotmaps[hii])
 
         if len(self.imglog.similarities) % 2 == 1:
-            name = "imglog%s-3hotmap-%s.png" % (self.imglog.printable_step,
-                                                self.imglog.similarities[-1])
+            name = "imglog%s-3hotmap-%s.png" % (
+                self.imglog.printable_step,
+                self.imglog.similarities[-1],
+            )
             self.imglog.dump_hotmap(name, self.imglog.hotmaps[-1])
 
         self.imglog.clear()
@@ -2848,8 +3343,10 @@ class DeepFinder(Finder):
         if backend is None:
             backend = GlobalConfig.deep_learn_backend
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
         self.params[category] = {}
         self.params[category]["backend"] = backend
@@ -2898,12 +3395,10 @@ class DeepFinder(Finder):
             else:
                 # only models pretrained on the COCO dataset are available
                 is_pretrained = model_checkpoint == "" and model_classes == 91
-                model = models.__dict__[model_arch](pretrained=is_pretrained,
-                                                    num_classes=model_classes)
+                model = models.__dict__[model_arch](pretrained=is_pretrained, num_classes=model_classes)
                 # load .pth or .pkl data file if pretrained model is available
                 if model_checkpoint:
-                    model.load_state_dict(torch.load(model_checkpoint,
-                                                     map_location="cpu"))
+                    model.load_state_dict(torch.load(model_checkpoint, map_location="cpu"))
                 self._cache[model_id] = model
 
             device_opt = self.params[category]["device"].value
@@ -2919,6 +3414,7 @@ class DeepFinder(Finder):
         elif backend == "tensorflow":
             # class-specific dependencies
             import tensorflow as tf
+
             tf.keras.backend.clear_session()
             # TODO: current TensorFlow model zoo/garden API is too unstable
             from research.object_detection.builders import model_builder
@@ -2931,7 +3427,7 @@ class DeepFinder(Finder):
 
             # load pipeline config and build a detection model
             configs = config_util.get_configs_from_pipeline_file(model_arch)
-            model_config = configs['model']
+            model_config = configs["model"]
 
             self.net = model_builder.build(model_config=model_config, is_training=False)
             ckpt = tf.compat.v2.train.Checkpoint(model=self.net)
@@ -2971,16 +3467,17 @@ class DeepFinder(Finder):
         backend = self.params["deep"]["backend"]
 
         if backend == "tensorflow":
-            raise NotImplementedError("The TensorFlow model zoo/garden libary "
-                                      "is too unstable at present")
+            raise NotImplementedError("The TensorFlow model zoo/garden libary " "is too unstable at present")
         assert backend == "pytorch", "Only PyTorch model zoo/garden is supported"
         import torch
+
         if needle.data_file is not None:
             with open(needle.data_file) as f:
                 classes_list = [line.rstrip() for line in f.readlines()]
 
                 def classes(x):
                     return classes_list[x]
+
         else:
             # an infinite list as a string identity map
             def classes(x):
@@ -2991,6 +3488,7 @@ class DeepFinder(Finder):
 
         # convert haystack data to tensor variable
         from torchvision import transforms
+
         img = haystack.pil_image
         transform = transforms.Compose([transforms.ToTensor()])
         img = transform(img)
@@ -3003,19 +3501,25 @@ class DeepFinder(Finder):
 
         matches = []
         from .match import Match
-        for i in range(len(pred[0]['labels'])):
-            label = classes(pred[0]['labels'][i].cpu().item())
-            score = pred[0]['scores'][i].cpu().item()
-            x, y, w, h = list(pred[0]['boxes'][i].cpu().numpy())
+
+        for i in range(len(pred[0]["labels"])):
+            label = classes(pred[0]["labels"][i].cpu().item())
+            score = pred[0]["scores"][i].cpu().item()
+            x, y, w, h = list(pred[0]["boxes"][i].cpu().numpy())
             rect = (int(x), int(y), int(x + w), int(y + h))
 
             from PIL import ImageDraw
+
             draw = ImageDraw.Draw(full_hotmap)
             draw.rectangle(rect, outline=(255, 0, 0))
             draw.text((rect[0], rect[1]), label, fill=(255, 0, 0, 0))
             if score < similarity:
-                logging.debug("Found %s has a low confidence score %s<%s, skipping",
-                              label, score, similarity)
+                logging.debug(
+                    "Found %s has a low confidence score %s<%s, skipping",
+                    label,
+                    score,
+                    similarity,
+                )
                 continue
             draw = ImageDraw.Draw(filtered_hotmap)
             draw.rectangle(rect, outline=(0, 255, 0))
@@ -3023,8 +3527,7 @@ class DeepFinder(Finder):
             if label != needle_class:
                 logging.debug("Found %s is not %s, skipping", label, needle_class)
                 continue
-            logging.debug("Found %s with sufficient confidence %s at (%s, %s)",
-                          label, score, x, y)
+            logging.debug("Found %s with sufficient confidence %s at (%s, %s)", label, score, x, y)
             draw = ImageDraw.Draw(final_hotmap)
             draw.rectangle(rect, outline=(0, 0, 255))
 
@@ -3056,10 +3559,14 @@ class DeepFinder(Finder):
         elif len(self.imglog.hotmaps) == 0:
             raise MissingHotmapError("No matching was performed in order to be image logged")
 
-        self.imglog.dump_hotmap("imglog%s-3hotmap-1full.png" % self.imglog.printable_step,
-                                self.imglog.hotmaps[0])
-        self.imglog.dump_hotmap("imglog%s-3hotmap-2filtered.png" % self.imglog.printable_step,
-                                self.imglog.hotmaps[1])
+        self.imglog.dump_hotmap(
+            "imglog%s-3hotmap-1full.png" % self.imglog.printable_step,
+            self.imglog.hotmaps[0],
+        )
+        self.imglog.dump_hotmap(
+            "imglog%s-3hotmap-2filtered.png" % self.imglog.printable_step,
+            self.imglog.hotmaps[1],
+        )
 
         similarity = self.imglog.similarities[-1] if len(self.imglog.similarities) > 0 else 0.0
         name = "imglog%s-3hotmap-%s.png" % (self.imglog.printable_step, similarity)
@@ -3085,7 +3592,13 @@ class HybridFinder(Finder):
 
         # available and currently fully compatible methods
         self.categories["hybrid"] = "hybrid_methods"
-        self.algorithms["hybrid_methods"] = ("autopy", "contour", "template", "feature", "tempfeat")
+        self.algorithms["hybrid_methods"] = (
+            "autopy",
+            "contour",
+            "template",
+            "feature",
+            "tempfeat",
+        )
 
         # other attributes
         self.matcher = None
@@ -3105,8 +3618,10 @@ class HybridFinder(Finder):
         if backend is None:
             backend = GlobalConfig.hybrid_match_backend
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
         self.params[category] = {}
         self.params[category]["backend"] = backend
@@ -3164,7 +3679,7 @@ class HybridFinder(Finder):
             iter(needle)
         except TypeError:
             # one step chains can be of any target type
-            log.debug("Defaulting to one step chain %s", needle)
+            _logger.debug("Defaulting to one step chain %s", needle)
             needle = [needle]
 
         for step_needle in needle:

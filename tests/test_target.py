@@ -16,20 +16,19 @@
 
 import os
 import unittest
-from unittest.mock import Mock, patch, call
-from tempfile import NamedTemporaryFile, mkdtemp, mkstemp, gettempdir
+from tempfile import NamedTemporaryFile, gettempdir, mkdtemp, mkstemp
+from unittest.mock import Mock, patch
 
 import common_test
-from guibot.target import Chain, Image, Pattern, Text
-from guibot.finder import Finder, CVParameter
-from guibot.errors import FileNotFoundError, UnsupportedBackendError
+from guibot.errors import NotFoundFileError, UnsupportedBackendError
 from guibot.fileresolver import FileResolver
+from guibot.finder import CVParameter, Finder
+from guibot.target import Chain, Image, Pattern, Text
 
 
 class ImageTest(unittest.TestCase):
-
     def setUp(self):
-        self.file_all_shapes = os.path.join(common_test.unittest_dir, 'images', 'all_shapes.png')
+        self.file_all_shapes = os.path.join(common_test.unittest_dir, "images", "all_shapes.png")
 
     def test_basic(self):
         """Test basic image target initialization."""
@@ -38,7 +37,7 @@ class ImageTest(unittest.TestCase):
         self.assertEqual(400, image.width)
         self.assertEqual(300, image.height)
 
-        self.assertTrue(image.filename.find('all_shapes.png') != -1)
+        self.assertTrue(image.filename.find("all_shapes.png") != -1)
         self.assertIsInstance(image.match_settings, Finder)
         self.assertFalse(image.use_own_settings)
 
@@ -100,7 +99,7 @@ class ImageTest(unittest.TestCase):
         """Test image target data and match settings saving."""
         image = Image(self.file_all_shapes)
 
-        with NamedTemporaryFile(prefix='guibot', suffix='.png') as f:
+        with NamedTemporaryFile(prefix="guibot", suffix=".png") as f:
             filename = f.name
         returned_image = image.save(filename)
         loaded_image = Image(filename)
@@ -119,28 +118,42 @@ class ImageTest(unittest.TestCase):
             for key in returned_image.match_settings.params[category].keys():
                 self.assertIn(key, loaded_image.match_settings.params[category])
                 if not isinstance(returned_image.match_settings.params[category][key], CVParameter):
-                    self.assertEqual(returned_image.match_settings.params[category][key],
-                                     loaded_image.match_settings.params[category][key])
+                    self.assertEqual(
+                        returned_image.match_settings.params[category][key],
+                        loaded_image.match_settings.params[category][key],
+                    )
                     continue
-                self.assertAlmostEqual(returned_image.match_settings.params[category][key].value,
-                                       loaded_image.match_settings.params[category][key].value)
-                self.assertEqual(returned_image.match_settings.params[category][key].range[0],
-                                 loaded_image.match_settings.params[category][key].range[0])
-                self.assertEqual(returned_image.match_settings.params[category][key].range[1],
-                                 loaded_image.match_settings.params[category][key].range[1])
-                self.assertEqual(returned_image.match_settings.params[category][key].delta,
-                                 loaded_image.match_settings.params[category][key].delta)
-                self.assertEqual(returned_image.match_settings.params[category][key].tolerance,
-                                 loaded_image.match_settings.params[category][key].tolerance)
-                self.assertEqual(returned_image.match_settings.params[category][key].fixed,
-                                 loaded_image.match_settings.params[category][key].fixed)
+                self.assertAlmostEqual(
+                    returned_image.match_settings.params[category][key].value,
+                    loaded_image.match_settings.params[category][key].value,
+                )
+                self.assertEqual(
+                    returned_image.match_settings.params[category][key].range[0],
+                    loaded_image.match_settings.params[category][key].range[0],
+                )
+                self.assertEqual(
+                    returned_image.match_settings.params[category][key].range[1],
+                    loaded_image.match_settings.params[category][key].range[1],
+                )
+                self.assertEqual(
+                    returned_image.match_settings.params[category][key].delta,
+                    loaded_image.match_settings.params[category][key].delta,
+                )
+                self.assertEqual(
+                    returned_image.match_settings.params[category][key].tolerance,
+                    loaded_image.match_settings.params[category][key].tolerance,
+                )
+                self.assertEqual(
+                    returned_image.match_settings.params[category][key].fixed,
+                    loaded_image.match_settings.params[category][key].fixed,
+                )
 
     def test_nonexisting_image(self):
         """Test image target initialization with missing image data."""
         try:
-            Image('foobar_does_not_exist')
-            self.fail('Exception not thrown')
-        except FileNotFoundError:
+            Image("foobar_does_not_exist")
+            self.fail("Exception not thrown")
+        except NotFoundFileError:
             pass
 
     def test_image_cache(self):
@@ -200,7 +213,7 @@ class ChainTest(unittest.TestCase):
             # The Target class will build a match file for each item in the stepsfile
             "Finder_from_match_file": patch("guibot.finder.Finder.from_match_file", wraps=self._get_match_file),
             "Finder_to_match_file": patch("guibot.finder.Finder.to_match_file"),
-            "PIL_Image_open": patch("PIL.Image.open")
+            "PIL_Image_open": patch("PIL.Image.open"),
         }
         self.mock_exists = self._patches["path_exists"].start()
         self.mock_match_read = self._patches["Finder_from_match_file"].start()
@@ -232,8 +245,7 @@ class ChainTest(unittest.TestCase):
         :returns: an instance of the finder
         :rtype: :py:class:`finder.Finder`
         """
-        filename = self._create_temp_file(prefix=self.stepsfile_name,
-            extension=".steps", contents=stepsfile_contents)
+        filename = self._create_temp_file(prefix=self.stepsfile_name, extension=".steps", contents=stepsfile_contents)
         return Chain(os.path.splitext(filename)[0])
 
     def _get_match_file(self, filename):
@@ -250,11 +262,7 @@ class ChainTest(unittest.TestCase):
         parts = filename.split("_")
         backend = parts[1] if len(parts) > 1 else parts[0]
         finder_mock = Mock()
-        finder_mock.params = {
-            "find": {
-                "backend": backend
-            }
-        }
+        finder_mock.params = {"find": {"backend": backend}}
         return finder_mock
 
     def _create_temp_file(self, prefix=None, extension=None, contents=None):
@@ -322,12 +330,12 @@ class ChainTest(unittest.TestCase):
             "item_for_cascade.xml	some_cascade_matchfile.match",
             "item_for_template.png	some_template_matchfile.match",
             "item_for_autopy.png	some_autopy_matchfile.match",
-            f"{text_file}	some_text_matchfile.match"
+            f"{text_file}	some_text_matchfile.match",
         ]
         self._build_chain(os.linesep.join(stepsfile_contents))
 
-        for l in stepsfile_contents:
-            item, match = l.split("\t")
+        for stepsfile_content in stepsfile_contents:
+            item, match = stepsfile_content.split("\t")
             # we need to have a finder created for each .match file (inside Chain itself)
             self.mock_match_read.assert_any_call(match)
 
@@ -344,7 +352,7 @@ class ChainTest(unittest.TestCase):
             "item_for_cascade.xml	some_cascade_matchfile.match",
             "item_for_template.png	some_template_matchfile.match",
             "item_for_autopy.png	some_autopy_matchfile.match",
-            f"{text_file}	some_text_matchfile.match"
+            f"{text_file}	some_text_matchfile.match",
         ]
         chain = self._build_chain(os.linesep.join(stepsfile_contents))
         expected_types = [Image, Image, Image, Pattern, Pattern, Image, Image, Text]
@@ -374,7 +382,7 @@ class ChainTest(unittest.TestCase):
             "item_for_template.png	some_template_matchfile.match",
             "item_for_autopy.png	some_autopy_matchfile.match",
             f"{text_file}	some_text_matchfile.match",
-            "some_text_content	some_text_matchfile.match"
+            "some_text_content	some_text_matchfile.match",
         ]
 
         expected_content = [
@@ -387,16 +395,17 @@ class ChainTest(unittest.TestCase):
             "item_for_template.png	item_for_template.match",
             "item_for_autopy.png	item_for_autopy.match",
             "{0}.txt	{0}.match".format(os.path.splitext(text_file)[0]),
-            "some_text_content	some_text_content.match"
+            "some_text_content	some_text_content.match",
         ]
 
-        source_stepsfile = self._create_temp_file(prefix=self.stepsfile_name,
-            extension=".steps", contents=os.linesep.join(stepsfile_contents))
+        source_stepsfile = self._create_temp_file(
+            prefix=self.stepsfile_name, extension=".steps", contents=os.linesep.join(stepsfile_contents)
+        )
 
         chain = Chain(os.path.splitext(source_stepsfile)[0])
         chain.save(target_filename)
 
-        with open(target_filename, "r") as f:
+        with open(target_filename) as f:
             generated_content = f.read().splitlines()
 
         # assert that the generated steps file has the expected content
@@ -406,7 +415,7 @@ class ChainTest(unittest.TestCase):
         # the calls to `Finder.to_match_file()`
         generated_match_names = []
         for c in self.mock_match_write.call_args_list:
-           generated_match_names.append(c[0][1])
+            generated_match_names.append(c[0][1])
 
         # get a list
         expected_match_names = [x.split("\t")[1] for x in expected_content]
@@ -420,14 +429,14 @@ class ChainTest(unittest.TestCase):
         """Test that the malformed stepsfiles are correctly handled."""
         stepsfile_contents = [
             "item_for_contour.png	some_contour_matchfile.match",
-            "some_text_content	with	tabs	some_text_content.match"
+            "some_text_content	with	tabs	some_text_content.match",
         ]
         self.assertRaises(IOError, self._build_chain, os.linesep.join(stepsfile_contents))
 
         stepsfile_contents = [
             "item_for_contour.png	some_contour_matchfile.match",
             "some_text_content",
-            "spanning multiple lines 	some_text_content.match"
+            "spanning multiple lines 	some_text_content.match",
         ]
         self.assertRaises(IOError, self._build_chain, os.linesep.join(stepsfile_contents))
 
@@ -436,13 +445,13 @@ class ChainTest(unittest.TestCase):
         # test on load
         stepsfile_contents = [
             "item_for_contour.png	some_contour_matchfile.match",
-            "some_text_content	some_unknown_content.match"
+            "some_text_content	some_unknown_content.match",
         ]
         self.assertRaises(UnsupportedBackendError, self._build_chain, os.linesep.join(stepsfile_contents))
 
         # test on save
         finder = Finder(False, False)
-        finder.params["find"] = { "backend": "unknown" }
+        finder.params["find"] = {"backend": "unknown"}
         chain = self._build_chain("")
         chain._steps.append(Text("", match_settings=finder))
         self.assertRaises(UnsupportedBackendError, chain.save, "foobar")
@@ -451,22 +460,21 @@ class ChainTest(unittest.TestCase):
         """Test that stepsfiles within stepsfiles are correctly handled."""
         # actually create files as mocking os.open() would be too cumbersome
         text_file = self._create_temp_text_file("item_for_text")
-        stepsfile1 = self._create_temp_file(extension=".steps",
-            contents=f"{text_file}	some_text_matchfile.match")
+        stepsfile1 = self._create_temp_file(extension=".steps", contents=f"{text_file}	some_text_matchfile.match")
 
         # second step file contains a reference to the first
-        stepsfile2 = self._create_temp_file(extension=".steps",
-            contents=stepsfile1)
+        stepsfile2 = self._create_temp_file(extension=".steps", contents=stepsfile1)
 
         stepsfile3_contents = [
             "item_for_contour.png	some_contour_matchfile.match",
             "item_for_cascade.xml	some_cascade_matchfile.match",
             # third step file contains a reference to the second
-            stepsfile2
+            stepsfile2,
         ]
 
-        stepsfile3 = self._create_temp_file(prefix=self.stepsfile_name,
-            extension=".steps", contents=os.linesep.join(stepsfile3_contents))
+        stepsfile3 = self._create_temp_file(
+            prefix=self.stepsfile_name, extension=".steps", contents=os.linesep.join(stepsfile3_contents)
+        )
 
         chain = Chain(stepsfile3)
         expected_types = [Image, Pattern, Text]
@@ -476,24 +484,22 @@ class ChainTest(unittest.TestCase):
         """Test that stepsfiles within stepsfiles are loaded in order."""
         # actually create files as mocking os.open() would be too cumbersome
         text_file = self._create_temp_text_file("item_for_text")
-        stepsfile1 = self._create_temp_file(extension=".steps",
-            contents=f"{text_file}	some_text_matchfile.match")
-        stepsfile2 = self._create_temp_file(extension=".steps",
-            contents="item_for_contour.png	some_contour_matchfile.match")
+        stepsfile1 = self._create_temp_file(extension=".steps", contents=f"{text_file}	some_text_matchfile.match")
+        stepsfile2 = self._create_temp_file(
+            extension=".steps", contents="item_for_contour.png	some_contour_matchfile.match"
+        )
 
-        stepsfile3_contents = [
-            stepsfile1,
-            "item_for_cascade.xml	some_cascade_matchfile.match",
-            stepsfile2
-        ]
+        stepsfile3_contents = [stepsfile1, "item_for_cascade.xml	some_cascade_matchfile.match", stepsfile2]
 
         # second step file contains a reference to the third
-        stepsfile3 = self._create_temp_file(prefix=self.stepsfile_name,
-            extension=".steps", contents=os.linesep.join(stepsfile3_contents))
+        stepsfile3 = self._create_temp_file(
+            prefix=self.stepsfile_name, extension=".steps", contents=os.linesep.join(stepsfile3_contents)
+        )
 
         chain = Chain(stepsfile3)
         expected_types = [Text, Pattern, Image]
         self.assertEqual([type(s) for s in chain._steps], expected_types)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

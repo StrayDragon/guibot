@@ -25,19 +25,24 @@ INTERFACE
 
 """
 
-
-__all__ = ['GuiBotError', 'FileNotFoundError',
-           'IncompatibleTargetError', 'IncompatibleTargetFileError',
-           'FindError', 'NotFindError',
-           'UnsupportedBackendError', 'MissingHotmapError',
-           'UninitializedBackendError']
+__all__ = (
+    "GuiBotError",
+    "NotFoundFileError",
+    "IncompatibleTargetError",
+    "IncompatibleTargetFileError",
+    "FindError",
+    "NotFindError",
+    "UnsupportedBackendError",
+    "MissingHotmapError",
+    "UninitializedBackendError",
+)
 
 
 class GuiBotError(Exception):
     """GuiBot exception base class"""
 
 
-class FileNotFoundError(GuiBotError):
+class NotFoundFileError(GuiBotError):
     """Exception raised when a picture file cannot be found on disc"""
 
 
@@ -63,7 +68,7 @@ class FindError(GuiBotError):
             message = "The target %s could not be found on the screen" % failed_target
         else:
             message = "The target could not be found on the screen"
-        super(FindError, self).__init__(message)
+        super().__init__(message)
 
 
 class NotFindError(GuiBotError):
@@ -80,7 +85,7 @@ class NotFindError(GuiBotError):
             message = "The target %s was found on the screen while it was not expected" % failed_target
         else:
             message = "The target was found on the screen while it was not expected"
-        super(NotFindError, self).__init__(message)
+        super().__init__(message)
 
 
 class UnsupportedBackendError(GuiBotError):

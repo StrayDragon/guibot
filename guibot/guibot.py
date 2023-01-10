@@ -27,20 +27,17 @@ INTERFACE
 
 """
 import logging
-from typing import TYPE_CHECKING, Optional, TypeVar
+from typing import TYPE_CHECKING, Optional
 
 from .fileresolver import FileResolver
 from .region import Region
 
-log = logging.getLogger('guibot')
-log.addHandler(logging.NullHandler())
+_logger = logging.getLogger("guibot")
+_logger.addHandler(logging.NullHandler())
 
 if TYPE_CHECKING:
     from .controller import Controller
     from .finder import Finder
-
-_DC_T = TypeVar("_DC_T", bound=Controller)
-_CV_T = TypeVar("_CV_T", bound=Finder)
 
 
 class GuiBot(Region):
@@ -51,7 +48,7 @@ class GuiBot(Region):
     .. seealso:: Real API is inherited from :py:class:`region.Region`.
     """
 
-    def __init__(self, dc: Optional[_DC_T] = None, cv: Optional[_CV_T] = None):
+    def __init__(self, dc: Optional["Controller"] = None, cv: Optional["Finder"] = None):
         """
         Build a guibot object.
 

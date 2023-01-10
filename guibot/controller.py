@@ -25,24 +25,22 @@ INTERFACE
 
 """
 
+import logging
 import os
 import re
 import time
-import logging
+from tempfile import NamedTemporaryFile
 
 import PIL.Image
-from tempfile import NamedTemporaryFile
 
 from . import inputmap
 from .config import GlobalConfig, LocalConfig
-from .target import Image
+from .errors import UninitializedBackendError, UnsupportedBackendError
 from .location import Location
-from .errors import *
+from .target import Image
 
-
-log = logging.getLogger('guibot.controller')
-__all__ = ['Controller', 'AutoPyController', 'XDoToolController',
-           'VNCDoToolController', 'PyAutoGUIController']
+log = logging.getLogger("guibot.controller")
+__all__ = ["Controller", "AutoPyController", "XDoToolController", "VNCDoToolController", "PyAutoGUIController"]
 
 
 class Controller(LocalConfig):
@@ -53,12 +51,11 @@ class Controller(LocalConfig):
 
     def __init__(self, configure=True, synchronize=True):
         """Build a screen controller backend."""
-        super(Controller, self).__init__(configure=False, synchronize=False)
+        super().__init__(configure=False, synchronize=False)
 
         # available and currently fully compatible methods
         self.categories["control"] = "control_methods"
-        self.algorithms["control_methods"] = ["autopy", "pyautogui",
-                                              "xdotool", "vncdotool"]
+        self.algorithms["control_methods"] = ["autopy", "pyautogui", "xdotool", "vncdotool"]
 
         # other attributes
         self._backend_obj = None
@@ -84,6 +81,7 @@ class Controller(LocalConfig):
         :rtype: int
         """
         return self._width
+
     width = property(fget=get_width)
 
     def get_height(self):
@@ -94,6 +92,7 @@ class Controller(LocalConfig):
         :rtype: int
         """
         return self._height
+
     height = property(fget=get_height)
 
     def get_keymap(self):
@@ -104,6 +103,7 @@ class Controller(LocalConfig):
         :rtype: :py:class:`inputmap.Key`
         """
         return self._keymap
+
     keymap = property(fget=get_keymap)
 
     def get_mousemap(self):
@@ -114,6 +114,7 @@ class Controller(LocalConfig):
         :rtype: :py:class:`inputmap.MouseButton`
         """
         return self._mousemap
+
     mousemap = property(fget=get_mousemap)
 
     def get_modmap(self):
@@ -124,6 +125,7 @@ class Controller(LocalConfig):
         :rtype: :py:class:`inputmap.KeyModifier`
         """
         return self._modmap
+
     modmap = property(fget=get_modmap)
 
     def get_mouse_location(self):
@@ -134,18 +136,21 @@ class Controller(LocalConfig):
         :rtype: :py:class:`location.Location`
         """
         return self._pointer
+
     mouse_location = property(fget=get_mouse_location)
 
     def __configure_backend(self, backend=None, category="control", reset=False):
         if category != "control":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(Controller, self).configure_backend("dc", reset=True)
+            super().configure_backend("dc", reset=True)
         if backend is None:
             backend = GlobalConfig.display_control_backend
         if backend not in self.algorithms[self.categories[category]]:
-            raise UnsupportedBackendError("Backend '%s' is not among the supported ones: "
-                                          "%s" % (backend, self.algorithms[self.categories[category]]))
+            raise UnsupportedBackendError(
+                "Backend '%s' is not among the supported ones: "
+                "%s" % (backend, self.algorithms[self.categories[category]])
+            )
 
         log.log(9, "Setting backend for %s to %s", category, backend)
         self.params[category] = {}
@@ -164,7 +169,7 @@ class Controller(LocalConfig):
         if category != "control":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(Controller, self).synchronize_backend("dc", reset=True)
+            super().synchronize_backend("dc", reset=True)
         if backend is not None and self.params[category]["backend"] != backend:
             raise UninitializedBackendError("Backend '%s' has not been configured yet" % backend)
 
@@ -209,7 +214,7 @@ class Controller(LocalConfig):
             height = self._height - ypos
 
         # TODO: Switch to in-memory conversion - patch backends or request get_raw() from authors
-        with NamedTemporaryFile(prefix='guibot', suffix='.png') as f:
+        with NamedTemporaryFile(prefix="guibot", suffix=".png") as f:
             # NOTE: the file can be open twice on unix but only once on windows so simply
             # use the generated filename to avoid this difference and remove it manually
             filename = f.name
@@ -330,7 +335,7 @@ class AutoPyController(Controller):
 
     def __init__(self, configure=True, synchronize=True):
         """Build a DC backend using AutoPy."""
-        super(AutoPyController, self).__init__(configure=False, synchronize=False)
+        super().__init__(configure=False, synchronize=False)
         if configure:
             self.__configure_backend(reset=True)
         if synchronize:
@@ -348,13 +353,14 @@ class AutoPyController(Controller):
         if int(version[0]) > 3 or int(version[0]) == 3 and (int(version[1]) > 0 or int(version[2]) > 0):
             return Location(int(loc[0] * self._scale), int(loc[1] * self._scale))
         return Location(int(loc[0] / self._scale), int(loc[1] / self._scale))
+
     mouse_location = property(fget=get_mouse_location)
 
     def __configure_backend(self, backend=None, category="autopy", reset=False):
         if category != "autopy":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(AutoPyController, self).configure_backend("autopy", reset=True)
+            super().configure_backend("autopy", reset=True)
 
         self.params[category] = {}
         self.params[category]["backend"] = "none"
@@ -371,11 +377,12 @@ class AutoPyController(Controller):
         if category != "autopy":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(AutoPyController, self).synchronize_backend("autopy", reset=True)
+            super().synchronize_backend("autopy", reset=True)
         if backend is not None and self.params[category]["backend"] != backend:
             raise UninitializedBackendError("Backend '%s' has not been configured yet" % backend)
 
         import autopy
+
         self._backend_obj = autopy
 
         self._scale = self._backend_obj.screen.scale()
@@ -410,11 +417,11 @@ class AutoPyController(Controller):
         try:
             autopy_bmp = self._backend_obj.bitmap.capture_screen(((xpos, ypos), (width, height)))
         except ValueError:
-            return Image(None, PIL.Image.new('RGB', (1, 1)))
+            return Image(None, PIL.Image.new("RGB", (1, 1)))
         autopy_bmp.save(filename)
 
         with PIL.Image.open(filename) as f:
-            pil_image = f.convert('RGB')
+            pil_image = f.convert("RGB")
         os.unlink(filename)
         return Image(None, pil_image)
 
@@ -504,7 +511,7 @@ class XDoToolController(Controller):
 
     def __init__(self, configure=True, synchronize=True):
         """Build a DC backend using XDoTool."""
-        super(XDoToolController, self).__init__(configure=False, synchronize=False)
+        super().__init__(configure=False, synchronize=False)
         if configure:
             self.__configure_backend(reset=True)
         if synchronize:
@@ -520,13 +527,14 @@ class XDoToolController(Controller):
         x = re.search(r"x:(\d+)", pos).group(1)
         y = re.search(r"y:(\d+)", pos).group(1)
         return Location(int(x), int(y))
+
     mouse_location = property(fget=get_mouse_location)
 
     def __configure_backend(self, backend=None, category="xdotool", reset=False):
         if category != "xdotool":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(XDoToolController, self).configure_backend("xdotool", reset=True)
+            super().configure_backend("xdotool", reset=True)
 
         self.params[category] = {}
         self.params[category]["backend"] = "none"
@@ -544,19 +552,22 @@ class XDoToolController(Controller):
         if category != "xdotool":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(XDoToolController, self).synchronize_backend("xdotool", reset=True)
+            super().synchronize_backend("xdotool", reset=True)
         if backend is not None and self.params[category]["backend"] != backend:
             raise UninitializedBackendError("Backend '%s' has not been configured yet" % backend)
 
         import subprocess
-        class XDoTool(object):
+
+        class XDoTool:
             def __init__(self, dc):
                 self.dc = dc
+
             def run(self, command, *args):
                 process = [self.dc.params[category]["binary"]]
                 process += [command]
                 process += args
                 return subprocess.check_output(process, shell=False).decode()
+
         self._backend_obj = XDoTool(self)
 
         self._width, self._height = self._backend_obj.run("getdisplaygeometry").split()
@@ -582,10 +593,13 @@ class XDoToolController(Controller):
         """
         xpos, ypos, width, height, filename = self._region_from_args(*args)
         import subprocess
+
         with subprocess.Popen(("xwd", "-silent", "-root"), stdout=subprocess.PIPE) as xwd:
-            subprocess.call(("convert", "xwd:-", "-crop", "%sx%s+%s+%s" % (width, height, xpos, ypos), filename), stdin=xwd.stdout)
+            subprocess.call(
+                ("convert", "xwd:-", "-crop", "%sx%s+%s+%s" % (width, height, xpos, ypos), filename), stdin=xwd.stdout
+            )
         with PIL.Image.open(filename) as f:
-            pil_image = f.convert('RGB')
+            pil_image = f.convert("RGB")
         os.unlink(filename)
         return Image(None, pil_image)
 
@@ -597,8 +611,9 @@ class XDoToolController(Controller):
         """
         if smooth:
             # TODO: implement smooth mouse move?
-            log.warning("Smooth mouse move is not supported for the XDO controller,"
-                        " defaulting to instant mouse move")
+            log.warning(
+                "Smooth mouse move is not supported for the XDO controller," " defaulting to instant mouse move"
+            )
         self._backend_obj.run("mousemove", str(location.x), str(location.y))
         # handle race conditions where the backend coordinates are updated too
         # slowly by giving some time for the new location to take effect there
@@ -650,9 +665,9 @@ class XDoToolController(Controller):
         """
         for key in keys:
             if up_down:
-                self._backend_obj.run('keydown', str(key))
+                self._backend_obj.run("keydown", str(key))
             else:
-                self._backend_obj.run('keyup', str(key))
+                self._backend_obj.run("keyup", str(key))
 
     def keys_type(self, text, modifiers=None):
         """
@@ -664,7 +679,7 @@ class XDoToolController(Controller):
             self.keys_toggle(modifiers, True)
 
         for part in text:
-            self._backend_obj.run('type', str(part))
+            self._backend_obj.run("type", str(part))
 
         if modifiers is not None:
             self.keys_toggle(modifiers, False)
@@ -678,7 +693,7 @@ class VNCDoToolController(Controller):
 
     def __init__(self, configure=True, synchronize=True):
         """Build a DC backend using VNCDoTool."""
-        super(VNCDoToolController, self).__init__(configure=False, synchronize=False)
+        super().__init__(configure=False, synchronize=False)
         if configure:
             self.__configure_backend(reset=True)
         if synchronize:
@@ -688,7 +703,7 @@ class VNCDoToolController(Controller):
         if category != "vncdotool":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(VNCDoToolController, self).configure_backend("vncdotool", reset=True)
+            super().configure_backend("vncdotool", reset=True)
 
         self.params[category] = {}
         self.params[category]["backend"] = "none"
@@ -711,28 +726,30 @@ class VNCDoToolController(Controller):
         if category != "vncdotool":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(VNCDoToolController, self).synchronize_backend("vncdotool", reset=True)
+            super().synchronize_backend("vncdotool", reset=True)
         if backend is not None and self.params[category]["backend"] != backend:
             raise UninitializedBackendError("Backend '%s' has not been configured yet" % backend)
 
         from vncdotool import api
+
         if self._backend_obj:
             # api.connect() gives us a threaded client, so we need to clean up resources
             # to avoid dangling connections and deadlocks if synchronizing more than once
             self._backend_obj.disconnect()
-        self._backend_obj = api.connect('%s:%i' % (self.params[category]["vnc_hostname"],
-                                                   self.params[category]["vnc_port"]),
-                                        self.params[category]["vnc_password"])
+        self._backend_obj = api.connect(
+            "%s:%i" % (self.params[category]["vnc_hostname"], self.params[category]["vnc_port"]),
+            self.params[category]["vnc_password"],
+        )
         # for special characters preprocessing for the vncdotool
         self._backend_obj.factory.force_caps = True
 
         # additional logging for vncdotool available so let's make use of it
-        logging.getLogger('vncdotool.client').setLevel(10)
-        logging.getLogger('vncdotool').setLevel(logging.ERROR)
-        logging.getLogger('twisted').setLevel(logging.ERROR)
+        logging.getLogger("vncdotool.client").setLevel(10)
+        logging.getLogger("vncdotool").setLevel(logging.ERROR)
+        logging.getLogger("twisted").setLevel(logging.ERROR)
 
         # screen size
-        with NamedTemporaryFile(prefix='guibot', suffix='.png') as f:
+        with NamedTemporaryFile(prefix="guibot", suffix=".png") as f:
             filename = f.name
         screen = self._backend_obj.captureScreen(filename)
         os.unlink(filename)
@@ -765,7 +782,7 @@ class VNCDoToolController(Controller):
         xpos, ypos, width, height, _ = self._region_from_args(*args)
         self._backend_obj.refreshScreen()
         cropped = self._backend_obj.screen.crop((xpos, ypos, xpos + width, ypos + height))
-        pil_image = cropped.convert('RGB')
+        pil_image = cropped.convert("RGB")
         return Image(None, pil_image)
 
     def mouse_move(self, location, smooth=True):
@@ -826,11 +843,11 @@ class VNCDoToolController(Controller):
         """
         for key in keys:
             if key == "\\":
-                key = 'bslash'
+                key = "bslash"
             elif key == "/":
-                key = 'fslash'
+                key = "fslash"
             elif key == " ":
-                key = 'space'
+                key = "space"
             if up_down:
                 self._backend_obj.keyDown(key)
             else:
@@ -848,13 +865,13 @@ class VNCDoToolController(Controller):
         for part in text:
             for char in str(part):
                 if char == "\\":
-                    char = 'bslash'
+                    char = "bslash"
                 elif char == "/":
-                    char = 'fslash'
+                    char = "fslash"
                 elif char == " ":
-                    char = 'space'
+                    char = "space"
                 elif char == "\n":
-                    char = 'return'
+                    char = "return"
                 time.sleep(GlobalConfig.delay_between_keys)
                 self._backend_obj.keyPress(char)
 
@@ -870,7 +887,7 @@ class PyAutoGUIController(Controller):
 
     def __init__(self, configure=True, synchronize=True):
         """Build a DC backend using PyAutoGUI."""
-        super(PyAutoGUIController, self).__init__(configure=False, synchronize=False)
+        super().__init__(configure=False, synchronize=False)
         if configure:
             self.__configure_backend(reset=True)
         if synchronize:
@@ -884,13 +901,14 @@ class PyAutoGUIController(Controller):
         """
         x, y = self._backend_obj.position()
         return Location(x, y)
+
     mouse_location = property(fget=get_mouse_location)
 
     def __configure_backend(self, backend=None, category="pyautogui", reset=False):
         if category != "pyautogui":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(PyAutoGUIController, self).configure_backend("pyautogui", reset=True)
+            super().configure_backend("pyautogui", reset=True)
 
         self.params[category] = {}
         self.params[category]["backend"] = "none"
@@ -907,11 +925,12 @@ class PyAutoGUIController(Controller):
         if category != "pyautogui":
             raise UnsupportedBackendError("Backend category '%s' is not supported" % category)
         if reset:
-            super(PyAutoGUIController, self).synchronize_backend("pyautogui", reset=True)
+            super().synchronize_backend("pyautogui", reset=True)
         if backend is not None and self.params[category]["backend"] != backend:
             raise UninitializedBackendError("Backend '%s' has not been configured yet" % backend)
 
         import pyautogui
+
         # allow for (0,0) and edge coordinates
         pyautogui.FAILSAFE = False
         self._backend_obj = pyautogui

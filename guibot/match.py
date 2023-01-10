@@ -21,14 +21,13 @@ Class and functionality related to target matches on screen.
 
 
 INTERFACE
-------------------------------------------------------
 
 """
 
-from .region import Region
-from .location import Location
 from .controller import Controller
 from .finder import Finder
+from .location import Location
+from .region import Region
 
 
 class Match(Region):
@@ -37,8 +36,7 @@ class Match(Region):
     of matches on a screen.
     """
 
-    def __init__(self, xpos, ypos, width, height, dx=0, dy=0,
-                 similarity=0.0, dc=None, cv=None):
+    def __init__(self, xpos, ypos, width, height, dx=0, dy=0, similarity=0.0, dc=None, cv=None):
         """
         Build a match object.
 
@@ -52,7 +50,7 @@ class Match(Region):
         """
         dc = Controller() if dc is None else dc
         cv = Finder() if cv is None else cv
-        super(Match, self).__init__(xpos, ypos, width, height, dc=dc, cv=cv)
+        super().__init__(xpos, ypos, width, height, dc=dc, cv=cv)
         # custom DC and CV backends can be set later on by a region
         # if a match within the match will be needed (they are optional)
         # -> recreate the match to fully initialized it with a different backend
@@ -73,6 +71,7 @@ class Match(Region):
         :type value: int
         """
         self._xpos = value
+
     x = property(fget=Region.get_x, fset=set_x)
 
     def set_y(self, value):
@@ -85,6 +84,7 @@ class Match(Region):
         :type value: int
         """
         self._ypos = value
+
     y = property(fget=Region.get_y, fset=set_y)
 
     def get_dx(self):
@@ -95,6 +95,7 @@ class Match(Region):
         :rtype: int
         """
         return self._dx
+
     dx = property(fget=get_dx)
 
     def get_dy(self):
@@ -105,6 +106,7 @@ class Match(Region):
         :rtype: int
         """
         return self._dy
+
     dy = property(fget=get_dy)
 
     def get_similarity(self):
@@ -115,6 +117,7 @@ class Match(Region):
         :rtype: float
         """
         return self._similarity
+
     similarity = property(fget=get_similarity)
 
     def get_target(self):
@@ -124,9 +127,8 @@ class Match(Region):
         :returns: target location to click on if clicking on the match
         :rtype: :py:class:`location.Location`
         """
-        return self.calc_click_point(self._xpos, self._ypos,
-                                     self._width, self._height,
-                                     Location(self._dx, self._dy))
+        return self.calc_click_point(self._xpos, self._ypos, self._width, self._height, Location(self._dx, self._dy))
+
     target = property(fget=get_target)
 
     def calc_click_point(self, xpos, ypos, width, height, offset):
@@ -142,8 +144,7 @@ class Match(Region):
         :returns: target location to click on if clicking on the match
         :rtype: :py:class:`location.Location`
         """
-        center_region = Region(0, 0, width, height,
-                               dc=self.dc_backend, cv=self.cv_backend)
+        center_region = Region(0, 0, width, height, dc=self.dc_backend, cv=self.cv_backend)
         click_center = center_region.center
 
         target_xpos = xpos + click_center.x + offset.x

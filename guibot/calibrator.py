@@ -25,26 +25,27 @@ INTERFACE
 
 """
 
-import time
-import math
 import copy
-
-from .finder import *
-from .target import Target
-from .imagelogger import ImageLogger
-from .errors import *
-
 import logging
-log = logging.getLogger('guibot.calibrator')
+import math
+import time
 
+from .errors import UnsupportedBackendError
+from .finder import CVParameter
+from .imagelogger import ImageLogger
+from .target import Target
+
+_logger = logging.getLogger("guibot.calibrator")
 
 #: explicit blacklist of backend combinations to skip for benchmarking
-benchmark_blacklist = [("mixed", "normal", "mixed", "east", "hmm", "adaptive", "adaptive"),
-                       ("mixed", "adaptive", "mixed", "east", "hmm", "adaptive", "adaptive"),
-                       ("mixed", "canny", "mixed", "east", "hmm", "adaptive", "adaptive")]
+benchmark_blacklist = [
+    ("mixed", "normal", "mixed", "east", "hmm", "adaptive", "adaptive"),
+    ("mixed", "adaptive", "mixed", "east", "hmm", "adaptive", "adaptive"),
+    ("mixed", "canny", "mixed", "east", "hmm", "adaptive", "adaptive"),
+]
 
 
-class Calibrator(object):
+class Calibrator:
     """
     Provides with a group of methods to facilitate and automate the selection
     of algorithms and parameters that are most suitable for a given preselected
@@ -69,7 +70,7 @@ class Calibrator(object):
         if needle is not None and haystack is not None:
             self.cases.append((needle, haystack, True))
         elif config is not None:
-            with open(config, "r") as f:
+            with open(config) as f:
                 for line in f.read().splitlines():
                     # each line has the shape "needle.ext haystack.ext max/min"
                     needle, haystack, maximize = line.split(" ")
@@ -77,17 +78,22 @@ class Calibrator(object):
                     haystack = Target.from_data_file(haystack)
                     maximize = maximize == "max"
                     self.cases.append((needle, haystack, maximize))
-                    log.info("Registering match case with needle %s and haystack %s for %s",
-                             needle, haystack, "maximizing" if maximize else "minimizing")
+                    _logger.info(
+                        "Registering match case with needle %s and haystack %s for %s",
+                        needle,
+                        haystack,
+                        "maximizing" if maximize else "minimizing",
+                    )
         else:
-            raise ValueError("Need at least a single needle/haystack for calibration"
-                             " or a config file for more than one match case")
+            raise ValueError(
+                "Need at least a single needle/haystack for calibration"
+                " or a config file for more than one match case"
+            )
 
         # this attribute can be changed to use different run function
         self.run = self.run_default
 
-    def benchmark(self, finder, random_starts=0, uniform=False,
-                  calibration=False, max_attempts=3, **kwargs):
+    def benchmark(self, finder, random_starts=0, uniform=False, calibration=False, max_attempts=3, **kwargs):
         """
         Perform benchmarking on all available algorithms of a finder
         for a given needle and haystack.
@@ -108,8 +114,7 @@ class Calibrator(object):
             for a given `needle` and `haystack`.
         """
         results = []
-        log.info("Performing benchmarking %s calibration",
-                 "with" if calibration else "without")
+        _logger.info("Performing benchmarking %s calibration", "with" if calibration else "without")
         # block logging since we need all its info after the matching finishes
         ImageLogger.accumulate_logging = True
 
@@ -129,38 +134,44 @@ class Calibrator(object):
                 for backend in backends:
                     for z in backend_tuples(category_list[1:], finder):
                         yield (backend,) + z
+
         for backend_tuple in backend_tuples(ordered_categories, finder):
             if backend_tuple in benchmark_blacklist:
-                log.warning("Skipping blacklisted benchmarked backend combination")
+                _logger.warning("Skipping blacklisted benchmarked backend combination")
                 continue
             method = "+".join(backend_tuple)
-            log.info("Benchmark testing with %s", method)
+            _logger.info("Benchmark testing with %s", method)
 
             for backend, category in zip(backend_tuple, ordered_categories):
                 finder.configure_backend(backend=backend, category=category, reset=False)
                 finder.can_calibrate(category, calibration)
                 try:
                     finder.synchronize_backend(backend=backend, category=category, reset=False)
-                except UnsupportedBackendError as error:
-                    log.debug("Skipping synchronization for %s/backend=%s", category, backend)
+                except UnsupportedBackendError:
+                    _logger.debug("Skipping synchronization for %s/backend=%s", category, backend)
 
             if random_starts > 0:
-                self.search(finder, random_starts=random_starts, uniform=uniform,
-                            calibration=calibration, max_attempts=max_attempts, **kwargs)
+                self.search(
+                    finder,
+                    random_starts=random_starts,
+                    uniform=uniform,
+                    calibration=calibration,
+                    max_attempts=max_attempts,
+                    **kwargs,
+                )
             elif calibration:
                 self.calibrate(finder, max_attempts=max_attempts, **kwargs)
 
             start_time = time.time()
             similarity = 1.0 - self.run(finder, **kwargs)
             total_time = time.time() - start_time
-            log.debug("Obtained similarity %s from %s in %ss", similarity, method, total_time)
+            _logger.debug("Obtained similarity %s from %s in %ss", similarity, method, total_time)
             results.append((method, similarity, total_time))
 
         ImageLogger.accumulate_logging = False
         return sorted(results, key=lambda x: x[1], reverse=True)
 
-    def search(self, finder, random_starts=1, uniform=False,
-               calibration=True, max_attempts=3, **kwargs):
+    def search(self, finder, random_starts=1, uniform=False, calibration=True, max_attempts=3, **kwargs):
         """
         Search for the best match configuration for a given needle and haystack
         using calibration from random initial conditions.
@@ -186,7 +197,7 @@ class Calibrator(object):
         best_error = self.run(finder, **kwargs)
         best_params = init_params = finder.params
         for i in range(random_starts):
-            log.info("Random run %s\\%s, best error %s", i+1, random_starts, best_error)
+            _logger.info("Random run %s\\%s, best error %s", i + 1, random_starts, best_error)
 
             params = copy.deepcopy(init_params)
             for category in params.keys():
@@ -198,7 +209,7 @@ class Calibrator(object):
                         mean = None if uniform else param.value
                         deviation = None if uniform else param.delta
                         param.value = param.random_value(mean, deviation)
-                        log.debug("Setting %s/%s to random value=%s", category, key, param.value)
+                        _logger.debug("Setting %s/%s to random value=%s", category, key, param.value)
 
             finder.params = params
             if calibration:
@@ -207,22 +218,21 @@ class Calibrator(object):
                 error = self.run(finder, **kwargs)
 
             if error < best_error:
-                log.info("Random start ended with smaller error %s < %s", error, best_error)
+                _logger.info("Random start ended with smaller error %s < %s", error, best_error)
                 best_error = error
                 best_params = params
             else:
-                log.debug("Random start did not end with smaller error %s >= %s", error, best_error)
+                _logger.debug("Random start did not end with smaller error %s >= %s", error, best_error)
 
         ImageLogger.accumulate_logging = False
-        log.info("Best error for all random starts is %s", best_error)
+        _logger.info("Best error for all random starts is %s", best_error)
         finder.params = best_params
-        log.log(9, "Best parameters for all random starts:")
+        _logger.log(9, "Best parameters for all random starts:")
         for category in finder.params.keys():
             for key in finder.params[category].keys():
                 param = finder.params[category][key]
                 if hasattr(param, "value"):
-                    log.log(9, "\t%s/%s with value %s +/- delta of %s",
-                            category, key, param.value, param.delta)
+                    _logger.log(9, "\t%s/%s with value %s +/- delta of %s", category, key, param.value, param.delta)
         return 1.0 - best_error
 
     def calibrate(self, finder, max_attempts=3, **kwargs):
@@ -256,13 +266,13 @@ class Calibrator(object):
         # block logging for performance speedup
         ImageLogger.accumulate_logging = True
         best_error = self.run(finder, **kwargs)
-        log.log(9, "Calibration start with error=%s", best_error)
+        _logger.log(9, "Calibration start with error=%s", best_error)
 
         for n in range(max_attempts):
-            log.info("Try %s\\%s, best error %s", n+1, max_attempts, best_error)
+            _logger.info("Try %s\\%s, best error %s", n + 1, max_attempts, best_error)
 
             if best_error == 0.0:
-                log.info("Exiting due to zero error")
+                _logger.info("Exiting due to zero error")
                 break
 
             slowdown_flag = True
@@ -272,17 +282,23 @@ class Calibrator(object):
                     if key == "backend":
                         continue
                     elif not isinstance(param, CVParameter):
-                        log.warning("The parameter %s/%s is not a CV parameter!", category, key)
+                        _logger.warning("The parameter %s/%s is not a CV parameter!", category, key)
                         continue
                     elif param.fixed:
-                        log.log(9, "Skip fixed parameter: %s/%s", category, key)
+                        _logger.log(9, "Skip fixed parameter: %s/%s", category, key)
                         continue
                     elif isinstance(param.value, str):
-                        log.log(9, "Skip string parameter: %s/%s (calibration not supported)", category, key)
+                        _logger.log(9, "Skip string parameter: %s/%s (calibration not supported)", category, key)
                         continue
                     elif param.delta < param.tolerance:
-                        log.log(9, "The parameter %s/%s has slowed down to %s below tolerance %s",
-                                category, key, param.delta, param.tolerance)
+                        _logger.log(
+                            9,
+                            "The parameter %s/%s has slowed down to %s below tolerance %s",
+                            category,
+                            key,
+                            param.delta,
+                            param.tolerance,
+                        )
                         continue
                     else:
                         slowdown_flag = False
@@ -291,15 +307,13 @@ class Calibrator(object):
                     # add the delta to the current parameter
                     if isinstance(param.value, float):
                         if param.range[1] is not None:
-                            param.value = min(start_value + param.delta,
-                                              param.range[1])
+                            param.value = min(start_value + param.delta, param.range[1])
                         else:
                             param.value = start_value + param.delta
                     elif isinstance(param.value, int) and not param.enumerated:
                         intdelta = int(math.ceil(param.delta))
                         if param.range[1] is not None:
-                            param.value = min(start_value + intdelta,
-                                              param.range[1])
+                            param.value = min(start_value + intdelta, param.range[1])
                         else:
                             param.value = start_value + intdelta
                     # remaining types require special handling
@@ -310,8 +324,17 @@ class Calibrator(object):
                                 continue
                             param.value = mode
                             error = self.run(finder, **kwargs)
-                            log.log(9, "%s/%s: %s +> %s (delta: %s) = %s (best: %s)", category, key,
-                                    start_value, param.value, param.delta, error, best_error)
+                            _logger.log(
+                                9,
+                                "%s/%s: %s +> %s (delta: %s) = %s (best: %s)",
+                                category,
+                                key,
+                                start_value,
+                                param.value,
+                                param.delta,
+                                error,
+                                best_error,
+                            )
                             if error < best_error:
                                 best_error = error
                                 param.value = mode
@@ -325,12 +348,20 @@ class Calibrator(object):
                         else:
                             param.value = True
                     else:
-                        raise ValueError("Parameter %s/%s is of unsupported type %s",
-                                         category, key, type(param.value))
+                        raise ValueError("Parameter %s/%s is of unsupported type %s", category, key, type(param.value))
 
                     error = self.run(finder, **kwargs)
-                    log.log(9, "%s/%s: %s +> %s (delta: %s) = %s (best: %s)", category, key,
-                            start_value, param.value, param.delta, error, best_error)
+                    _logger.log(
+                        9,
+                        "%s/%s: %s +> %s (delta: %s) = %s (best: %s)",
+                        category,
+                        key,
+                        start_value,
+                        param.value,
+                        param.delta,
+                        error,
+                        best_error,
+                    )
                     if error < best_error:
                         best_error = error
                         param.delta *= 1.1
@@ -339,15 +370,13 @@ class Calibrator(object):
 
                         if isinstance(param.value, float):
                             if param.range[0] is not None:
-                                param.value = max(start_value - param.delta,
-                                                  param.range[0])
+                                param.value = max(start_value - param.delta, param.range[0])
                             else:
                                 param.value = start_value - param.delta
                         elif isinstance(param.value, int):
                             intdelta = int(math.floor(param.delta))
                             if param.range[0] is not None:
-                                param.value = max(start_value - intdelta,
-                                                  param.range[0])
+                                param.value = max(start_value - intdelta, param.range[0])
                             else:
                                 param.value = start_value - intdelta
                         elif isinstance(param.value, bool):
@@ -356,8 +385,17 @@ class Calibrator(object):
                             continue
 
                         error = self.run(finder, **kwargs)
-                        log.log(9, "%s/%s: %s -> %s (delta: %s) = %s (best: %s)", category, key,
-                                start_value, param.value, param.delta, error, best_error)
+                        _logger.log(
+                            9,
+                            "%s/%s: %s -> %s (delta: %s) = %s (best: %s)",
+                            category,
+                            key,
+                            start_value,
+                            param.value,
+                            param.delta,
+                            error,
+                            best_error,
+                        )
                         if error < best_error:
                             best_error = error
                             param.delta *= 1.1
@@ -370,11 +408,11 @@ class Calibrator(object):
                                 param.max_delta = param.delta
 
             if slowdown_flag:
-                log.info("Exiting due to sufficient slowdown for all parameters")
+                _logger.info("Exiting due to sufficient slowdown for all parameters")
                 break
 
         ImageLogger.accumulate_logging = False
-        log.log(9, "Calibration end with error=%s for:", best_error)
+        _logger.log(9, "Calibration end with error=%s for:", best_error)
         for category in finder.params.keys():
             for key in finder.params[category].keys():
                 param = finder.params[category][key]
@@ -384,8 +422,7 @@ class Calibrator(object):
                         delattr(param, "max_delta")
                     elif param.fixed:
                         param.delta = 0.0
-                    log.log(9, "\t%s/%s with value %s +/- delta of %s",
-                            category, key, param.value, param.delta)
+                    _logger.log(9, "\t%s/%s with value %s +/- delta of %s", category, key, param.value, param.delta)
         return 1.0 - best_error
 
     def run_default(self, finder, **_kwargs):
@@ -406,13 +443,12 @@ class Calibrator(object):
                 # pick similarity of the best match as representative
                 similarity = matches[0].similarity
             except Exception as error:
-                log.warning("No match was found at this step (%s)", error)
+                _logger.warning("No match was found at this step (%s)", error)
                 similarity = 0.0
             finder.imglog.clear()
             total_similarity += similarity if maximize else 1.0 - similarity
 
-        error = 1.0 - total_similarity / len(self.cases)
-        return error
+        return 1.0 - total_similarity / len(self.cases)  # error
 
     def run_performance(self, finder, **kwargs):
         """
@@ -437,17 +473,15 @@ class Calibrator(object):
                 # pick similarity of the best match as representative
                 similarity = matches[0].similarity
             except Exception as error:
-                log.warning("No match was found at this step (%s)", error)
+                _logger.warning("No match was found at this step (%s)", error)
                 similarity = 0.0
             total_time = time.time() - start_time
             finder.imglog.clear()
             total_similarity += similarity if maximize else 1.0 - similarity
 
-        # main penalty for bad quality of matching
-        error = 1.0 - total_similarity / len(self.cases)
-        # extra penalty for slow solutions (linear)
-        error += max(total_time - max_exec_time, 0)
-        return error
+        return (1.0 - total_similarity / len(self.cases)) + max(  # main penalty for bad quality of matching
+            total_time - max_exec_time, 0
+        )  # extra penalty for slow solutions (linear)  # error
 
     def run_peak(self, finder, **kwargs):
         """
@@ -487,13 +521,12 @@ class Calibrator(object):
                 # final match case similarity is the mean for all matches
                 similarity = subtotal_similarity / len(matches)
             except Exception as error:
-                log.warning("No match was found at this step (%s)", error)
+                _logger.warning("No match was found at this step (%s)", error)
                 similarity = 0.0
             finder.imglog.clear()
             total_similarity += similarity if maximize else 1.0 - similarity
 
-        error = 1.0 - total_similarity / len(self.cases)
-        return error
+        return 1.0 - total_similarity / len(self.cases)  # error
 
     def _handle_restricted_values(self, finder):
         if "threshold" in finder.params:
